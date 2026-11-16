@@ -1,0 +1,47 @@
+feeds:
+  whill:
+    started: "車体通信確認"
+    lost: "車体通信断"
+    recovered: "車体通信復旧"
+
+  ouster:
+    started: "三次元レーザ受信"
+    lost: "三次元レーザ通信断"
+    recovered: "三次元レーザ復旧"
+
+  urg_front:
+    started: "前方センサ受信"
+    lost: "前方センサ通信断"
+    recovered: "前方センサ復旧"
+
+  urg_left:
+    started: "左側センサ受信"
+    lost: "左側センサ通信断"
+    recovered: "左側センサ復旧"
+
+  urg_right:
+    started: "右側センサ受信"
+    lost: "右側センサ通信断"
+    recovered: "右側センサ復旧"
+
+  odom:
+    started: "SLAM起動"
+    lost: "SLAM通信断"
+    recovered: "SLAM復旧"
+
+  scan_ouster:
+    started: null
+    lost: null
+    recovered: null
+
+events:
+  system_start: "システム起動"
+  whill_ready: "車体状態正常"
+  whill_error: "車体状態を確認してください"
+  initial_pose_required: "初期位置を指定してください"
+  localization_ready: "自己位置姿勢推定完了"
+  localization_lost: "自己位置姿勢推定喪失"
+  localization_recovered: "自己位置姿勢推定復旧"
+  navigation_ready: "ナビゲーション起動"
+  navigation_error: "ナビゲーションを確認してください"
+  system_ready: "システム準備完了"

@@ -7,6 +7,8 @@ import subprocess
 import tempfile
 import threading
 import time
+import yaml
+import math
 from pathlib import Path
 
 import rclpy
@@ -20,6 +22,7 @@ from sensor_msgs.msg import LaserScan, PointCloud2
 from std_msgs.msg import String
 from whill_msgs.msg import ModelCr2State
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus
+from ament_index_python.packages import get_package_share_directory
 
 
 NAV2_LIFECYCLE_NODES = (
@@ -33,52 +36,17 @@ NAV2_LIFECYCLE_NODES = (
     'velocity_smoother',
 )
 
-# Key, startup message, lost message, recovery message
-FEEDS = {
-    'whill': (
-        '車体の状態情報を受信しました。',
-        '車体との通信が途絶えました。',
-        '車体との通信が復旧しました。',
-    ),
-    'ouster': (
-        '三次元レーザーの点群を受信しました。',
-        '三次元レーザーの通信が途絶えました。',
-        '三次元レーザーの通信が復旧しました。',
-    ),
-    'urg_front': (
-        '前方障害物センサーが動作しています。',
-        '前方障害物センサーの通信が途絶えました。',
-        '前方障害物センサーの通信が復旧しました。',
-    ),
-    'urg_left': (
-        '左側障害物センサーが動作しています。',
-        '左側障害物センサーの通信が途絶えました。',
-        '左側障害物センサーの通信が復旧しました。',
-    ),
-    'urg_right': (
-        '右側障害物センサーが動作しています。',
-        '右側障害物センサーの通信が途絶えました。',
-        '右側障害物センサーの通信が復旧しました。',
-    ),
-    'odom': (
-        'スラムの自己移動推定が動作しています。',
-        'スラムの位置情報が途絶えました。',
-        'スラムの位置情報が復旧しました。',
-    ),
-    'scan_ouster': (None, None, None),
-}
-
-
 class SpeechWorker:
     """Generate and play Japanese speech in a worker thread."""
 
-    def __init__(self, logger, dictionary, voice_file, rate):
+    def __init__(self, logger, dictionary, voice_file, rate, queue_size, expiry_sec):
         self.logger = logger
         self.dictionary = dictionary
         self.voice_file = voice_file
         self.rate = rate
+        self.expiry_sec = expiry_sec
 
-        self.messages = queue.Queue(maxsize=12)
+        self.messages = queue.Queue(maxsize=queue_size)
         self.stop_event = threading.Event()
         self.thread = None
 
@@ -135,8 +103,12 @@ class SpeechWorker:
                 queued_at, message, valid_if = item
 
                 try:
-                    # Skip outdated messages.
-                    if time.monotonic() - queued_at > 7.0:
+                    elapsed = time.monotonic() - queued_at
+
+                    if elapsed > self.expiry_sec:
+                        self.logger.warning(
+                            f'Announcement expired ({elapsed:.1f}s): {message}'
+                        )
                         continue
 
                     if valid_if is not None and not valid_if():
@@ -200,21 +172,45 @@ class SystemStatusAnnouncer(Node):
     def __init__(self):
         super().__init__('system_status_announcer')
 
-        self.declare_parameter(
-            'dictionary',
-            '/var/lib/mecab/dic/open-jtalk/naist-jdic',
-        )
+        self.declare_parameter('dictionary', '/var/lib/mecab/dic/open-jtalk/naist-jdic')
         self.declare_parameter(
             'voice_file',
             '/usr/share/hts-voice/nitech-jp-atr503-m001/'
-            'nitech_jp_atr503_m001.htsvoice',
+            'nitech_jp_atr503_m001.htsvoice'
         )
         self.declare_parameter('speech_rate', 1.0)
+        self.declare_parameter('speech_queue_size', 12)
+        self.declare_parameter('speech_expiry_sec', 7.0)
         self.declare_parameter('sensor_timeout_sec', 4.0)
         self.declare_parameter('odom_timeout_sec', 3.0)
         self.declare_parameter('localization_timeout_sec', 5.0)
         self.declare_parameter('nav2_timeout_sec', 4.0)
         self.declare_parameter('check_period_sec', 1.0)
+        self.declare_parameter('messages_file', '')
+
+        configured_path = self.get_parameter('messages_file').value
+        default_path = (
+            Path(get_package_share_directory('whill_nav2_bringup'))
+            / 'config' / 'announcement_messages.yaml'
+        )
+        messages_path = Path(configured_path) if configured_path else default_path
+
+        with messages_path.open('r', encoding='utf-8') as file:
+            messages = yaml.safe_load(file)
+
+        required_feeds = (
+            'whill', 'ouster', 'urg_front', 'urg_left',
+            'urg_right', 'odom', 'scan_ouster',
+        )
+
+        self.feed_messages = {
+            name: tuple(
+                messages['feeds'][name][state]
+                for state in ('started', 'lost', 'recovered')
+            )
+            for name in required_feeds
+        }
+        self.event_messages = messages['events']
 
         def param(name):
             return self.get_parameter(name).value
@@ -244,18 +240,26 @@ class SystemStatusAnnouncer(Node):
             10,
         )
 
+        queue_size = int(param('speech_queue_size'))
+        expiry_sec = float(param('speech_expiry_sec'))
+
+        if queue_size <= 0 or not math.isfinite(expiry_sec) or expiry_sec <= 0:
+            raise ValueError('Invalid speech queue configuration')
+
         self.speech = SpeechWorker(
             self.get_logger(),
             param('dictionary'),
             param('voice_file'),
             speech_rate,
+            queue_size,
+            expiry_sec,
         )
 
         self.last_messages = {
-            name: None for name in FEEDS
+            name: None for name in self.feed_messages
         }
         self.feed_states = {
-            name: 'waiting' for name in FEEDS
+            name: 'waiting' for name in self.feed_messages
         }
 
         self.whill_power_ok = False
@@ -353,7 +357,7 @@ class SystemStatusAnnouncer(Node):
             clock=steady_clock,
         )
 
-        self.announce('システムを起動します。')
+        self.announce_event('system_start')
 
     # -----------------------------------------------------
     # Announcements
@@ -363,6 +367,11 @@ class SystemStatusAnnouncer(Node):
         self.get_logger().info(f'Announcement: {message}')
         self.announcement_pub.publish(String(data=message))
         self.speech.say(message, valid_if)
+
+    def announce_event(self, key, valid_if=None):
+        message = self.event_messages[key]
+        if message:
+            self.announce(message, valid_if)
 
     def mark(self, name):
         self.last_messages[name] = time.monotonic()
@@ -499,7 +508,7 @@ class SystemStatusAnnouncer(Node):
         self.poll_lifecycle(now)
 
         # Sensor and odometry freshness.
-        for name, messages in FEEDS.items():
+        for name, messages in self.feed_messages.items():
             started, lost, recovered = messages
 
             timeout = (
@@ -545,13 +554,9 @@ class SystemStatusAnnouncer(Node):
             if self.whill_power_ok != self.whill_power_announced:
 
                 if self.whill_power_ok:
-                    self.announce(
-                        '車体の電源と状態を確認しました。'
-                    )
+                    self.announce_event('whill_ready')
                 else:
-                    self.announce(
-                        '車体の電源またはエラー状態を確認してください。'
-                    )
+                    self.announce_event('whill_error')
 
                 self.whill_power_announced = self.whill_power_ok
 
@@ -561,9 +566,7 @@ class SystemStatusAnnouncer(Node):
             and self.feed_states['odom'] == 'ok'
         ):
             if not self.asked_initial_pose:
-                self.announce(
-                    '初期位置を指定してください。'
-                )
+                self.announce_event('initial_pose_required')
                 self.asked_initial_pose = True
 
         elif (
@@ -589,20 +592,14 @@ class SystemStatusAnnouncer(Node):
 
         if localized_now and not self.localized:
             if self.ever_localized:
-                self.announce(
-                    '自己位置推定が復旧しました。'
-                )
+                self.announce_event('localization_recovered')
             else:
-                self.announce(
-                    '自己位置推定が完了しました。'
-                )
+                self.announce_event('localization_ready')
 
             self.ever_localized = True
 
         elif self.localized and not localized_now:
-            self.announce(
-                '自己位置推定が失われました。'
-            )
+            self.announce_event('localization_lost')
 
         self.localized = localized_now
 
@@ -617,14 +614,10 @@ class SystemStatusAnnouncer(Node):
         )
 
         if nav_now and not self.nav_active:
-            self.announce(
-                'ナビゲーションが起動しました。'
-            )
+            self.announce_event('navigation_ready')
 
         elif self.nav_active and not nav_now:
-            self.announce(
-                'ナビゲーションの状態を確認してください。'
-            )
+            self.announce_event('navigation_error')
 
         self.nav_active = nav_now
 
@@ -643,8 +636,8 @@ class SystemStatusAnnouncer(Node):
         self.system_ready = ready
 
         if ready and not was_ready:
-            self.announce(
-                'システムの準備が完了しました。',
+            self.announce_event(
+                'system_ready',
                 valid_if=lambda: self.system_ready,
             )
 
