@@ -67,7 +67,9 @@ Local Costmap, Global Costmap
 Hokuyo URG
         ↓
 urg_node2
- └── /scan_urg
+ ├── /urg_front/scan
+ ├── /urg_left/scan
+ └── /urg_light/scan
         ↓
 Local Costmap
 ```
