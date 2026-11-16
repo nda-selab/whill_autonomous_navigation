@@ -5,7 +5,6 @@
 WHILL Nav2 Bringup
 ```bash
 ros2 launch whill_nav2_bringup autonomous_navigation.launch.py \
-  prior_3d_map:=/home/selab/data/selab/pointcloud_2016-02-12-01-30-04_replay_loop_closed.pcd \
   prior_2d_map:=/home/selab/data/selab/nav2_map_csf/map.yaml
 ```
 
@@ -43,7 +42,6 @@ ros2 run lidar_localization_ros2 start_lifecycle_node.py lidar_localization
 WHILL Nav2 Bringup
 ```bash
 ros2 launch whill_nav2_bringup autonomous_navigation.launch.py \
-  prior_3d_map:='/home/selab/data/nda_361/loglio2/loglio2_merged_segmented_level.ply' \
   prior_2d_map:=/home/selab/data/nda_361/nav2_map_csf/map.yaml
 ```
 

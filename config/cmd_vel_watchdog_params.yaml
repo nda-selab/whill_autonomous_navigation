@@ -4,6 +4,7 @@ cmd_vel_watchdog:
     output_topic: /whill/controller/cmd_vel
 
     command_timeout_sec: 0.4
+    localization_timeout_sec: 1.5
     publish_frequency: 20.0
 
     max_forward_speed: 0.25

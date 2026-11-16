@@ -25,12 +25,13 @@ PCD to OccupancyGrid Conversion
 ### Map-based Localization
 
 ```text
-Prior 3D Map（PCD、prior_3d_mapで指定）
+Prior 3D Map（PCD / PLY）
         ↓
-lidar_submap_localization
+lidar_localization_ros2
  ├── Input: /cloud_registered
- ├── Input: /odom_nav
  ├── Input: /initialpose
+ ├── Input: odom -> base_link (TF)
+ ├── Output: /alignment_status
  └── TF: map -> odom
 ```
 
