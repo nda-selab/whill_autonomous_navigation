@@ -105,8 +105,6 @@ def generate_launch_description():
             ])
         ),
         launch_arguments={
-            'prior_3d_map': LaunchConfiguration('prior_3d_map'),
-            'localization_config': LaunchConfiguration('localization_config'),
             'use_sim_time': LaunchConfiguration('use_sim_time'),
         }.items(),
     )
@@ -254,22 +252,8 @@ def generate_launch_description():
         ),
 
         DeclareLaunchArgument(
-            'prior_3d_map',
-            description='Absolute path to prior 3D PCD',
-        ),
-
-        DeclareLaunchArgument(
             'prior_2d_map',
             description='Absolute path to 2D occupancy grid map YAML',
-        ),
-
-        DeclareLaunchArgument(
-            'localization_config',
-            default_value=PathJoinSubstitution([
-                FindPackageShare('whill_nav2_bringup'),
-                'config',
-                'localization.yaml',
-            ]),
         ),
 
         DeclareLaunchArgument(

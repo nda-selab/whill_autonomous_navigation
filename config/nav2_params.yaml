@@ -117,6 +117,7 @@ local_costmap:
           marking: true
           clearing: true
           inf_is_valid: true
+          expected_update_rate: 0.5
           obstacle_min_range: 0.3
           obstacle_max_range: 8.0
           raytrace_min_range: 0.3
@@ -130,6 +131,7 @@ local_costmap:
           marking: true
           clearing: true
           inf_is_valid: true
+          expected_update_rate: 0.5
           obstacle_min_range: 0.05
           obstacle_max_range: 4.0
           raytrace_min_range: 0.05
@@ -143,6 +145,7 @@ local_costmap:
           marking: true
           clearing: false
           inf_is_valid: true
+          expected_update_rate: 0.5
           obstacle_min_range: 0.05
           obstacle_max_range: 4.0
           raytrace_min_range: 0.05
@@ -156,6 +159,7 @@ local_costmap:
           marking: true
           clearing: false
           inf_is_valid: true
+          expected_update_rate: 0.5
           obstacle_min_range: 0.05
           obstacle_max_range: 4.0
           raytrace_min_range: 0.05

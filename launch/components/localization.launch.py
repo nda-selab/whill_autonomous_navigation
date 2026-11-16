@@ -9,7 +9,7 @@ from launch_ros.descriptions import ParameterValue
 def generate_launch_description():
 
     # =========================================================
-    # 1. FAST-LIO2
+    # SLAM framework (FAST-LIO2)
     # =========================================================
     fast_lio2 = IncludeLaunchDescription(
         AnyLaunchDescriptionSource(
@@ -46,42 +46,9 @@ def generate_launch_description():
     )
 
     # =========================================================
-    # 3. Submap Localization
-    # =========================================================
-    #submap_localization = IncludeLaunchDescription(
-    #    AnyLaunchDescriptionSource(
-    #        PathJoinSubstitution([
-    #            FindPackageShare('whill_nav2_bringup'),
-    #            'launch',
-    #            'components',
-    #            'submap_localization.launch.py',
-    #        ])
-    #    ),
-    #    launch_arguments={
-    #        'prior_map': LaunchConfiguration('prior_3d_map'),
-    #        'config': LaunchConfiguration('localization_config'),
-    #        'use_sim_time': LaunchConfiguration('use_sim_time'),
-    #    }.items(),
-    #)
-
-    # =========================================================
     # Launch
     # =========================================================
     return LaunchDescription([
-
-        DeclareLaunchArgument(
-            'prior_3d_map',
-            description='Absolute path to prior 3D PCD'
-        ),
-
-        DeclareLaunchArgument(
-            'localization_config',
-            default_value=PathJoinSubstitution([
-                FindPackageShare('whill_nav2_bringup'),
-                'config',
-                'localization.yaml',
-            ]),
-        ),
 
         DeclareLaunchArgument(
             'use_sim_time',
@@ -91,5 +58,4 @@ def generate_launch_description():
 
         fast_lio2,
         odom_to_base_link,
-        #submap_localization,
     ])

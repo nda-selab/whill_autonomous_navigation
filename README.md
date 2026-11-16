@@ -27,7 +27,7 @@ PCD to OccupancyGrid Conversion
 ```text
 Prior 3D Map（PCD、prior_3d_mapで指定）
         ↓
-Submap Localizer
+lidar_submap_localization
  ├── Input: /cloud_registered
  ├── Input: /odom_nav
  ├── Input: /initialpose
@@ -155,7 +155,6 @@ behavior_server:
 
 ```bash
 ros2 launch whill_nav2_bringup autonomous_navigation.launch.py \
-  prior_3d_map:='/home/selab/data/selab/pointcloud_2016-02-12-01-30-04_replay_loop_closed.pcd' \
   prior_2d_map:='/home/selab/data/selab/nav2_map_csf/map.yaml'
 ```
 

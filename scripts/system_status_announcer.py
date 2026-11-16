@@ -45,10 +45,20 @@ FEEDS = {
         '三次元レーザーの通信が途絶えました。',
         '三次元レーザーの通信が復旧しました。',
     ),
-    'urg': (
-        '障害物センサーが動作しています。',
-        '障害物センサーの通信が途絶えました。',
-        '障害物センサーの通信が復旧しました。',
+    'urg_front': (
+        '前方障害物センサーが動作しています。',
+        '前方障害物センサーの通信が途絶えました。',
+        '前方障害物センサーの通信が復旧しました。',
+    ),
+    'urg_left': (
+        '左側障害物センサーが動作しています。',
+        '左側障害物センサーの通信が途絶えました。',
+        '左側障害物センサーの通信が復旧しました。',
+    ),
+    'urg_right': (
+        '右側障害物センサーが動作しています。',
+        '右側障害物センサーの通信が途絶えました。',
+        '右側障害物センサーの通信が復旧しました。',
     ),
     'odom': (
         'スラムの自己移動推定が動作しています。',
@@ -280,8 +290,20 @@ class SystemStatusAnnouncer(Node):
             ),
             self.create_subscription(
                 LaserScan,
-                '/scan_urg',
-                lambda msg: self.mark('urg'),
+                '/urg_front/scan',
+                lambda msg: self.mark('urg_front'),
+                qos_profile_sensor_data,
+            ),
+            self.create_subscription(
+                LaserScan,
+                '/urg_left/scan',
+                lambda msg: self.mark('urg_left'),
+                qos_profile_sensor_data,
+            ),
+            self.create_subscription(
+                LaserScan,
+                '/urg_right/scan',
+                lambda msg: self.mark('urg_right'),
                 qos_profile_sensor_data,
             ),
             self.create_subscription(
