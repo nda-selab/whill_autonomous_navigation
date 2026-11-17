@@ -141,7 +141,7 @@ local_costmap:
         enabled: true
         min_obstacle_height: -100.0
         max_obstacle_height: 100.0
-        observation_sources: urg_left urg_right
+        observation_sources: urg_left urg_left_clear urg_right urg_right_clear
         urg_left:
           topic: /urg_left/obstacles
           data_type: "PointCloud2"
@@ -150,12 +150,34 @@ local_costmap:
           expected_update_rate: 0.5
           min_obstacle_height: -100.0
           max_obstacle_height: 100.0
+        urg_left_clear:
+          topic: /urg_left/clearing
+          data_type: "PointCloud2"
+          sensor_frame: laser_left
+          marking: false
+          clearing: true
+          expected_update_rate: 0.5
+          raytrace_min_range: 0.05
+          raytrace_max_range: 4.0
+          min_obstacle_height: -100.0
+          max_obstacle_height: 100.0
         urg_right:
           topic: /urg_right/obstacles
           data_type: "PointCloud2"
           marking: true
           clearing: false
           expected_update_rate: 0.5
+          min_obstacle_height: -100.0
+          max_obstacle_height: 100.0
+        urg_right_clear:
+          topic: /urg_right/clearing
+          data_type: "PointCloud2"
+          sensor_frame: laser_right
+          marking: false
+          clearing: true
+          expected_update_rate: 0.5
+          raytrace_min_range: 0.05
+          raytrace_max_range: 4.0
           min_obstacle_height: -100.0
           max_obstacle_height: 100.0
 

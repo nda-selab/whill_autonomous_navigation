@@ -40,7 +40,7 @@ class UrgObstacleFilter(Node):
         self.tf_listener = TransformListener(self.tf_buffer, self)
         self.obstacle_pubs = {}
         self.floor_pubs = {}
-        self.subscriptions = []
+        self.scan_subscriptions = []
         self.last_valid = {side: None for side in ('left', 'right')}
         self.last_message = {side: 'waiting for scan' for side in ('left', 'right')}
         self.diagnostic_pub = self.create_publisher(DiagnosticArray, '/urg_obstacle_filter/status', 10)
@@ -49,7 +49,9 @@ class UrgObstacleFilter(Node):
                 PointCloud2, f'/urg_{side}/obstacles', qos_profile_sensor_data)
             self.floor_pubs[side] = self.create_publisher(
                 PointCloud2, f'/urg_{side}/ground', qos_profile_sensor_data)
-            self.subscriptions.append(self.create_subscription(
+            self.clearing_pubs[side] = self.create_publisher(
+                PointCloud2, f'/urg_{side}/clearing', qos_profile_sensor_data)
+            self.scan_subscriptions.append(self.create_subscription(
                 LaserScan, f'/urg_{side}/scan', lambda msg, s=side: self.process_scan(s, msg), qos_profile_sensor_data))
         self.timer = self.create_timer(0.25, self.publish_diagnostics)
         self.get_logger().info('Vertical URG floor filter started (prototype; not a safety stop)')
@@ -77,6 +79,7 @@ class UrgObstacleFilter(Node):
                 self.last_message[side] = 'local ground unavailable'
                 return  # Do not output an empty "valid" observation.
             obstacles, floor = classify_points(ids, points, ground, self.cfg)
+            self.publish_cloud(self.clearing_pubs[side], scan.header.stamp, points)
             self.publish_cloud(self.obstacle_pubs[side], scan.header.stamp, obstacles)
             self.publish_cloud(self.floor_pubs[side], scan.header.stamp, floor)
             self.last_valid[side] = time.monotonic()
