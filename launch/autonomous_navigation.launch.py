@@ -92,6 +92,17 @@ def generate_launch_description():
         }.items(),
     )
 
+    urg_obstacle_filter = IncludeLaunchDescription(
+        AnyLaunchDescriptionSource(
+            PathJoinSubstitution([
+                FindPackageShare('whill_nav2_bringup'),
+                'launch',
+                'components',
+                'urg_obstacle_filter.launch.py',
+            ])
+        )
+    )
+
     # =========================================================
     # Localization
     # =========================================================
@@ -275,6 +286,7 @@ def generate_launch_description():
 
         TimerAction(period=10.0, actions=[
             pointcloud_to_laserscan,
+            urg_obstacle_filter,
             cmd_vel_watchdog,
             nav2,
         ]),

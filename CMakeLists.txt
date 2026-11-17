@@ -14,9 +14,15 @@ install(DIRECTORY
 install(PROGRAMS
   scripts/cmd_vel_watchdog.py
   scripts/odom_to_base_link.py
+  scripts/system_status_announcer.py
   scripts/trajectory_waypoint_navigator.py
   scripts/twist_to_whill_joy.py
-  scripts/system_status_announcer.py
+  scripts/urg_obstacle_filter.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(FILES
+  scripts/urg_ground_geometry.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

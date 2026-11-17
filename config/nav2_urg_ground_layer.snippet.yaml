@@ -1,0 +1,40 @@
+# 既存の config/nav2_params.yaml の local_costmap.local_costmap.ros__parameters 以下を修正。
+# これは部分設定例です。そのまま独立したNav2パラメータファイルとしては使えません。
+# global_frame: odom と robot_base_frame: base_link は変更しません。
+plugins: ["obstacle_layer", "urg_ground_layer", "inflation_layer"]
+
+obstacle_layer:
+  plugin: "nav2_costmap_2d::ObstacleLayer"
+  enabled: true
+  min_obstacle_height: -2.0
+  max_obstacle_height: 2.0
+  observation_sources: ouster_scan urg_front
+  # 以下の ouster_scan / urg_front 定義は既存設定をそのまま維持。
+  # 旧 urg_left / urg_right 定義は、この obstacle_layer から削除。
+
+urg_ground_layer:
+  plugin: "nav2_costmap_2d::ObstacleLayer"
+  enabled: true
+  min_obstacle_height: -100.0
+  max_obstacle_height: 100.0
+  observation_sources: urg_left urg_right
+  urg_left:
+    topic: /urg_left/obstacles
+    data_type: "PointCloud2"
+    marking: true
+    clearing: false
+    expected_update_rate: 0.5
+    obstacle_min_range: 0.05
+    obstacle_max_range: 4.0
+    min_obstacle_height: -100.0
+    max_obstacle_height: 100.0
+  urg_right:
+    topic: /urg_right/obstacles
+    data_type: "PointCloud2"
+    marking: true
+    clearing: false
+    expected_update_rate: 0.5
+    obstacle_min_range: 0.05
+    obstacle_max_range: 4.0
+    min_obstacle_height: -100.0
+    max_obstacle_height: 100.0
