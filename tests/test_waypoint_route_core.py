@@ -86,6 +86,26 @@ class RouteTests(unittest.TestCase):
             from_dict({'version': 1, 'map_yaml': '/tmp/map.yaml', 'frame_id': 'map',
                        'waypoints': [{'id': 'wp1', 'x': 0, 'y': 1, 'unexpected': 1}]}, '/tmp/map.yaml')
 
+    def test_integer_coordinates_are_normalized(self):
+        data = {
+            'version': 1,
+            'frame_id': 'map',
+            'map_yaml': '/tmp/map.yaml',
+            'waypoints': [{
+                'id': 'wp001',
+                'x': 1,
+                'y': 2,
+                'yaw': 0,
+                'skippable': False,
+                'orientation_required': True,
+            }],
+        }
+        route = from_dict(data, '/tmp/map.yaml')
+        waypoint = route.waypoints[0]
+        self.assertIs(type(waypoint.x), float)
+        self.assertIs(type(waypoint.y), float)
+        self.assertIs(type(waypoint.yaw), float)
+        self.assertEqual((waypoint.x, waypoint.y), (1.0, 2.0))
 
 if __name__ == '__main__':
     unittest.main()

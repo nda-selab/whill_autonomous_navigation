@@ -70,12 +70,54 @@ def wait_for_gate(nav, gate, max_wait=10.0):
     raise RuntimeError('URG filter status is missing/ERROR; route execution blocked')
 
 
-def cancel_and_confirm(nav):
-    nav.cancelTask()
-    deadline = time.monotonic() + 5.0
-    while time.monotonic() < deadline:
-        if nav.isTaskComplete():
+def cancel_and_confirm(nav, timeout=5.0):
+    """Request cancellation and wait for a terminal result within timeout."""
+    goal_handle = getattr(nav, 'goal_handle', None)
+    result_future = getattr(nav, 'result_future', None)
+
+    if goal_handle is None or result_future is None:
+        return False
+
+    if result_future.done():
+        nav.isTaskComplete()
+        return True
+
+    deadline = time.monotonic() + timeout
+    try:
+        cancel_future = goal_handle.cancel_goal_async()
+    except Exception as error:
+        nav.get_logger().error(f'Cancel request failed: {error}')
+        return False
+
+    accepted = False
+    while rclpy.ok() and time.monotonic() < deadline:
+        remaining = max(0.0, deadline - time.monotonic())
+        rclpy.spin_once(nav, timeout_sec=min(0.1, remaining))
+
+        if result_future.done():
+            nav.isTaskComplete()
             return True
+
+        if cancel_future.done():
+            try:
+                response = cancel_future.result()
+                accepted = bool(response and response.goals_canceling)
+            except Exception as error:
+                nav.get_logger().error(f'Cancel response failed: {error}')
+                return False
+            break
+
+    if not accepted:
+        return False
+
+    while rclpy.ok() and time.monotonic() < deadline:
+        remaining = max(0.0, deadline - time.monotonic())
+        rclpy.spin_once(nav, timeout_sec=min(0.1, remaining))
+
+        if result_future.done():
+            nav.isTaskComplete()
+            return True
+
     return False
 
 

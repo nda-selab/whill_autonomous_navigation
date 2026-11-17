@@ -133,7 +133,21 @@ def from_dict(data, expected_map_yaml: str):
     for row in data['waypoints']:
         if not isinstance(row, dict) or not set(row) <= allowed:
             raise ValueError('Invalid waypoint record')
-        waypoints.append(Waypoint(**row))
+        normalized = dict(row)
+        for key in ('x', 'y', 'yaw'):
+            value = normalized.get(key)
+            if key == 'yaw' and value is None:
+                continue
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise ValueError(f'Waypoint {normalized.get("id")}: invalid {key}')
+            try:
+                value = float(value)
+            except (ValueError, OverflowError) as error:
+                raise ValueError(f'Waypoint {normalized.get("id")}: invalid {key}') from error
+            if not math.isfinite(value):
+                raise ValueError(f'Waypoint {normalized.get("id")}: non-finite {key}')
+            normalized[key] = value
+        waypoints.append(Waypoint(**normalized))
     route = Route(frame_id=data.get('frame_id', ''), map_yaml=str(data.get('map_yaml', '')), waypoints=waypoints)
     route.validate()
     actual = Path(route.map_yaml).expanduser().resolve()

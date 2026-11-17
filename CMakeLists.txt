@@ -18,11 +18,14 @@ install(PROGRAMS
   scripts/trajectory_waypoint_navigator.py
   scripts/twist_to_whill_joy.py
   scripts/urg_obstacle_filter.py
+  scripts/waypoint_editor.py
+  scripts/waypoint_route_runner.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
 install(FILES
   scripts/urg_ground_geometry.py
+  scripts/waypoint_route_core.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
