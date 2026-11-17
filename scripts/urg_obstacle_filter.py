@@ -40,6 +40,7 @@ class UrgObstacleFilter(Node):
         self.tf_listener = TransformListener(self.tf_buffer, self)
         self.obstacle_pubs = {}
         self.floor_pubs = {}
+        self.clearing_pubs = {}
         self.scan_subscriptions = []
         self.last_valid = {side: None for side in ('left', 'right')}
         self.last_message = {side: 'waiting for scan' for side in ('left', 'right')}

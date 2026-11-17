@@ -63,6 +63,19 @@ class UrgGroundTests(unittest.TestCase):
         obs, _ = classify_points(np.arange(len(pts)), pts, ground, cfg)
         self.assertEqual(len(obs), 0)
 
+    def test_flat_to_ramp_not_obstacle(self):
+        cfg = GroundConfig()
+        x = np.linspace(0.0, 1.5, 151)
+        z = 0.10 * np.maximum(x - 0.5, 0.0)
+        points = np.column_stack((x, np.full_like(x, 0.3), z))
+        indices = np.arange(len(points))
+
+        ground = fit_local_ground(points, cfg)
+        self.assertIsNotNone(ground)
+
+        obstacles, floor = classify_points(indices, points, ground, cfg)
+        self.assertEqual(len(obstacles), 0)
+        self.assertGreater(len(floor), 140)
 
 if __name__ == '__main__':
     unittest.main()

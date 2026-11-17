@@ -19,6 +19,10 @@ urg_obstacle_filter:
     obstacle_max_height: 0.40
     min_cluster_points: 2
 
+    floor_track_window: 0.25
+    floor_track_max_gap: 0.12
+    floor_track_max_step: 0.02
+
     sensor_timeout_sec: 0.6
     tf_timeout_sec: 0.2
     max_scan_range: 4.0

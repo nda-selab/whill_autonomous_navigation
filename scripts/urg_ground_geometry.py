@@ -22,6 +22,9 @@ class GroundConfig:
     obstacle_min_height: float = 0.05
     obstacle_max_height: float = 0.40
     min_cluster_points: int = 2
+    floor_track_window: float = 0.25
+    floor_track_max_gap: float = 0.12
+    floor_track_max_step: float = 0.02
 
 
 def scan_to_points(ranges, angle_min, angle_increment, range_min, range_max):
@@ -102,17 +105,75 @@ def fit_local_ground(points, cfg):
 
 
 def classify_points(indices, points, ground_model, cfg):
-    """Return (obstacles, floor) in base_link; group contiguous obstacle beams."""
+    """Track locally continuous ground and classify protrusions."""
+    x, z = points[:, 0], points[:, 2]
+    in_range = (
+        np.isfinite(x) & np.isfinite(z)
+        & (x >= cfg.obstacle_x_min) & (x <= cfg.obstacle_x_max)
+    )
+
     slope, intercept = ground_model
-    relative_height = points[:, 2] - (slope * points[:, 0] + intercept)
-    in_range = (points[:, 0] >= cfg.obstacle_x_min) & (points[:, 0] <= cfg.obstacle_x_max)
-    obstacles = in_range & (relative_height >= cfg.obstacle_min_height) & (relative_height <= cfg.obstacle_max_height)
-    floor = in_range & (np.abs(relative_height) <= cfg.floor_inlier_tolerance)
+    baseline = slope * x + intercept
+    floor = (
+        in_range & (x <= cfg.floor_fit_x_max)
+        & (np.abs(z - baseline) <= cfg.floor_inlier_tolerance)
+    )
+
+    accepted = np.flatnonzero(floor).tolist()
+    accepted.sort(key=lambda i: x[i])
+
+    order = np.flatnonzero(in_range & (x > cfg.floor_fit_x_max))
+    order = order[np.argsort(x[order], kind='stable')]
+    last_line = np.array(ground_model, dtype=float)
+
+    for i in order:
+        if accepted:
+            tail_x = x[accepted[-1]]
+            recent = [
+                j for j in accepted
+                if x[j] >= tail_x - cfg.floor_track_window
+            ]
+            if len(recent) >= 3 and np.ptp(x[recent]) > 0.06:
+                fitted = np.polyfit(x[recent], z[recent], 1)
+                if abs(fitted[0]) <= cfg.floor_max_slope:
+                    last_line = fitted
+
+        predicted = last_line[0] * x[i] + last_line[1]
+        baseline[i] = predicted
+
+        if not accepted:
+            continue
+
+        dx = x[i] - x[accepted[-1]]
+        if dx < 0 or dx > cfg.floor_track_max_gap:
+            continue
+        if abs(z[i] - predicted) > cfg.floor_inlier_tolerance:
+            continue
+        if abs(z[i] - z[accepted[-1]]) > (
+            cfg.floor_max_slope * dx + cfg.floor_track_max_step
+        ):
+            continue
+
+        floor[i] = True
+        accepted.append(int(i))
+
+    relative_height = z - baseline
+    obstacles = (
+        in_range & ~floor
+        & (relative_height >= cfg.obstacle_min_height)
+        & (relative_height <= cfg.obstacle_max_height)
+    )
+
     selected = np.flatnonzero(obstacles)
     keep = np.zeros(len(points), dtype=bool)
+
     if len(selected):
-        groups = np.split(selected, np.flatnonzero(np.diff(indices[selected]) != 1) + 1)
+        groups = np.split(
+            selected,
+            np.flatnonzero(np.diff(indices[selected]) != 1) + 1
+        )
         for group in groups:
             if len(group) >= cfg.min_cluster_points:
                 keep[group] = True
+
     return points[keep], points[floor]
