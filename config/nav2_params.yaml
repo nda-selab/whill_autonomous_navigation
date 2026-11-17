@@ -32,9 +32,8 @@ controller_server:
       movement_time_allowance: 10.0
 
     goal_checker:
-      plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 0.25
-      yaw_goal_tolerance: 0.30
+      plugin: "nav2_controller::PositionGoalChecker"
+      xy_goal_tolerance: 0.30
       stateful: true
 
     FollowPath:
@@ -279,6 +278,8 @@ behavior_server:
 waypoint_follower:
   ros__parameters:
     use_sim_time: false
+    stop_on_failure: false
+    loop_rate: 20
 
 velocity_smoother:
   ros__parameters:
