@@ -184,7 +184,7 @@ local_costmap:
 
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
-        inflation_radius: 0.35
+        inflation_radius: 0.90
         cost_scaling_factor: 3.0
 
       always_send_full_costmap: true
@@ -229,7 +229,7 @@ global_costmap:
 
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
-        inflation_radius: 0.35
+        inflation_radius: 0.90
         cost_scaling_factor: 3.0
 
       always_send_full_costmap: true
