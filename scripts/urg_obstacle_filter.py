@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prototype: process two vertical URGs relative to base_link and local floor."""
+"""Prototype: process two vertical URGs relative to base_footprint and local floor."""
 import time
 import numpy as np
 import rclpy
@@ -58,13 +58,13 @@ class UrgObstacleFilter(Node):
         self.get_logger().info('Vertical URG floor filter started (prototype; not a safety stop)')
 
     def publish_cloud(self, publisher, stamp, points):
-        header = Header(stamp=stamp, frame_id='base_link')
+        header = Header(stamp=stamp, frame_id='base_footprint')
         publisher.publish(point_cloud2.create_cloud_xyz32(header, points.astype(np.float32).tolist()))
 
     def process_scan(self, side, scan):
         try:
             tf = self.tf_buffer.lookup_transform(
-                'base_link', scan.header.frame_id, Time.from_msg(scan.header.stamp),
+                'base_footprint', scan.header.frame_id, Time.from_msg(scan.header.stamp),
                 timeout=Duration(seconds=self.tf_timeout))
             t = tf.transform.translation
             q = tf.transform.rotation

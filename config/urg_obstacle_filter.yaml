@@ -1,6 +1,5 @@
 urg_obstacle_filter:
   ros__parameters:
-    # 左右URGの縦走査点をbase_linkへ変換して、近傍床面 z=a*x+b を推定
     floor_fit_x_min: -0.05
     floor_fit_x_max: 0.45
     floor_fit_z_abs_max: 0.18
@@ -12,7 +11,6 @@ urg_obstacle_filter:
     floor_max_slope: 0.25
     floor_max_intercept_abs: 0.12
 
-    # 床面からの高さで突出物を分類。負の段差は未実装
     obstacle_x_min: -0.05
     obstacle_x_max: 1.50
     obstacle_min_height: 0.05
