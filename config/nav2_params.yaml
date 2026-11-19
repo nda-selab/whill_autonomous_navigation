@@ -248,7 +248,7 @@ planner_server:
       max_on_approach_iterations: 1000
       max_planning_time: 5.0
 
-      lattice_filepath: "/opt/ros/humble/share/nav2_smac_planner/sample_primitives/5cm_resolution/0.5m_turning_radius/diff/output.json"
+      lattice_filepath: /home/selab/ros2_ws/src/whill_nav2_bringup/config/lattice/diff_12cm.json
 
       allow_reverse_expansion: false
       cost_penalty: 2.0
