@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
 import os
-import queue
+import heapq
+import json
+import re
 import shutil
 import subprocess
 import tempfile
@@ -37,133 +39,109 @@ NAV2_LIFECYCLE_NODES = (
 )
 
 class SpeechWorker:
-    """Generate and play Japanese speech in a worker thread."""
+    """Synthesize English speech with Piper and play it in a separate thread."""
 
-    def __init__(self, logger, dictionary, voice_file, rate, queue_size, expiry_sec):
+    def __init__(self, logger, piper_python, model, rate, volume, queue_size, expiry_sec):
         self.logger = logger
-        self.dictionary = dictionary
-        self.voice_file = voice_file
+        self.piper_python = piper_python
+        self.model = model
         self.rate = rate
+        self.volume = volume
+        self.queue_size = queue_size
         self.expiry_sec = expiry_sec
-
-        self.messages = queue.Queue(maxsize=queue_size)
+        self.pending = []
+        self.sequence = 0
+        self.condition = threading.Condition()
         self.stop_event = threading.Event()
         self.thread = None
 
+        model_path = Path(model)
         self.available = (
-            shutil.which('open_jtalk') is not None
+            Path(piper_python).is_file()
+            and model_path.is_file()
+            and Path(str(model_path) + '.json').is_file()
             and shutil.which('aplay') is not None
-            and Path(dictionary).is_dir()
-            and Path(voice_file).is_file()
         )
-
         if not self.available:
-            self.logger.error(
-                'Voice output unavailable. Check Open JTalk, '
-                'dictionary, voice model and aplay.'
-            )
+            self.logger.error('Piper unavailable: verify Python, ONNX model, JSON and aplay')
             return
 
-        self.thread = threading.Thread(
-            target=self.run,
-            daemon=True,
-            name='speech_worker',
-        )
+        self.thread = threading.Thread(target=self.run, daemon=True, name='speech_worker')
         self.thread.start()
 
-    def say(self, message, valid_if=None):
-        if not self.available or self.stop_event.is_set():
+    def say(self, message, valid_if=None, priority=1):
+        if not self.available or self.stop_event.is_set() or not message:
             return
 
-        try:
-            self.messages.put_nowait(
-                (time.monotonic(), message, valid_if)
+        with self.condition:
+            if len(self.pending) >= self.queue_size:
+                # Evict a lower-priority queued item to preserve critical alerts.
+                worst = max(range(len(self.pending)), key=lambda i: self.pending[i][:2])
+                if self.pending[worst][0] <= priority:
+                    self.logger.warning(f'Speech queue full; dropped: {message}')
+                    return
+                self.logger.warning(f'Evicted queued speech: {self.pending[worst][3]}')
+                self.pending.pop(worst)
+                heapq.heapify(self.pending)
+
+            self.sequence += 1
+            heapq.heappush(
+                self.pending, (priority, self.sequence, time.monotonic(), message, valid_if)
             )
-        except queue.Full:
-            self.logger.warning(
-                f'Speech queue full. Skipped: {message}'
-            )
+            self.condition.notify()
 
     def run(self):
-        with tempfile.TemporaryDirectory(
-            prefix='whill_voice_'
-        ) as directory:
-
+        with tempfile.TemporaryDirectory(prefix='whill_voice_') as directory:
             cache = {}
-
             while not self.stop_event.is_set():
-                try:
-                    item = self.messages.get(timeout=0.2)
-                except queue.Empty:
-                    continue
-
-                if item is None:
-                    break
-
-                queued_at, message, valid_if = item
+                with self.condition:
+                    while not self.pending and not self.stop_event.is_set():
+                        self.condition.wait(timeout=0.2)
+                    if self.stop_event.is_set():
+                        break
+                    priority, _, queued_at, message, valid_if = heapq.heappop(self.pending)
 
                 try:
-                    elapsed = time.monotonic() - queued_at
-
-                    if elapsed > self.expiry_sec:
-                        self.logger.warning(
-                            f'Announcement expired ({elapsed:.1f}s): {message}'
-                        )
+                    if time.monotonic() - queued_at > self.expiry_sec:
+                        self.logger.warning(f'Announcement expired: {message}')
                         continue
-
                     if valid_if is not None and not valid_if():
                         continue
 
                     wav_path = cache.get(message)
-
                     if wav_path is None:
-                        wav_path = os.path.join(
-                            directory,
-                            f'voice_{len(cache)}.wav',
-                        )
-
+                        wav_path = os.path.join(directory, f'voice_{time.monotonic_ns()}.wav')
                         subprocess.run(
-                            [
-                                'open_jtalk',
-                                '-x', self.dictionary,
-                                '-m', self.voice_file,
-                                '-r', str(self.rate),
-                                '-ow', wav_path,
-                            ],
-                            input=message.encode('utf-8'),
-                            stdout=subprocess.DEVNULL,
-                            stderr=subprocess.PIPE,
-                            timeout=20,
-                            check=True,
+                            [self.piper_python, '-m', 'piper', '-m', self.model,
+                             '--length-scale', str(1.0 / self.rate),
+                             '--volume', str(self.volume), '-f', wav_path, '--', message],
+                            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                            timeout=20, check=True,
                         )
-
+                        # Keep the cache bounded for routes with many unique waypoint IDs.
+                        if len(cache) >= 64:
+                            old_path = cache.pop(next(iter(cache)))
+                            try:
+                                os.unlink(old_path)
+                            except OSError:
+                                pass
                         cache[message] = wav_path
 
+                    # The queue prioritizes pending messages; playback already in progress
+                    # is not interrupted. Navigation safety is never dependent on audio.
                     subprocess.run(
                         ['aplay', '-q', wav_path],
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.PIPE,
-                        timeout=30,
-                        check=True,
+                        stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                        timeout=30, check=True,
                     )
-
                 except (OSError, subprocess.SubprocessError) as error:
-                    self.logger.error(
-                        f'Audio playback failed: {error}'
-                    )
-
-                finally:
-                    self.messages.task_done()
+                    self.logger.error(f'Audio synthesis/playback failed: {error}')
 
     def close(self):
         self.stop_event.set()
-
+        with self.condition:
+            self.condition.notify_all()
         if self.thread is not None:
-            try:
-                self.messages.put_nowait(None)
-            except queue.Full:
-                pass
-
             self.thread.join(timeout=1.0)
 
 
@@ -172,13 +150,10 @@ class SystemStatusAnnouncer(Node):
     def __init__(self):
         super().__init__('system_status_announcer')
 
-        self.declare_parameter('dictionary', '/var/lib/mecab/dic/open-jtalk/naist-jdic')
-        self.declare_parameter(
-            'voice_file',
-            '/usr/share/hts-voice/nitech-jp-atr503-m001/'
-            'nitech_jp_atr503_m001.htsvoice'
-        )
+        self.declare_parameter('piper_python', '/home/selab/whill_tts_venv/bin/python')
+        self.declare_parameter('piper_model', '/home/selab/whill_tts_voices/en_US-amy-medium.onnx')
         self.declare_parameter('speech_rate', 1.0)
+        self.declare_parameter('speech_volume', 1.0)
         self.declare_parameter('speech_queue_size', 12)
         self.declare_parameter('speech_expiry_sec', 7.0)
         self.declare_parameter('sensor_timeout_sec', 4.0)
@@ -211,6 +186,8 @@ class SystemStatusAnnouncer(Node):
             for name in required_feeds
         }
         self.event_messages = messages['events']
+        self.waypoint_messages = messages['waypoints']
+        self.last_waypoint_seq = {}
 
         def param(name):
             return self.get_parameter(name).value
@@ -223,6 +200,7 @@ class SystemStatusAnnouncer(Node):
         self.nav2_timeout = float(param('nav2_timeout_sec'))
         self.check_period = float(param('check_period_sec'))
         speech_rate = float(param('speech_rate'))
+        speech_volume = float(param('speech_volume'))
 
         if min(
             self.sensor_timeout,
@@ -231,6 +209,7 @@ class SystemStatusAnnouncer(Node):
             self.nav2_timeout,
             self.check_period,
             speech_rate,
+            speech_volume,
         ) <= 0.0:
             raise ValueError('Timeouts and speech rate must be positive')
 
@@ -248,9 +227,10 @@ class SystemStatusAnnouncer(Node):
 
         self.speech = SpeechWorker(
             self.get_logger(),
-            param('dictionary'),
-            param('voice_file'),
+            param('piper_python'),
+            param('piper_model'),
             speech_rate,
+            speech_volume,
             queue_size,
             expiry_sec,
         )
@@ -328,6 +308,12 @@ class SystemStatusAnnouncer(Node):
                 self.on_localization_status,
                 10,
             ),
+            self.create_subscription(
+                String,
+                '/navigation/waypoint_event',
+                self.on_waypoint_event,
+                10,
+            ),
         ]
 
         # -------------------------------------------------
@@ -363,15 +349,45 @@ class SystemStatusAnnouncer(Node):
     # Announcements
     # -----------------------------------------------------
 
-    def announce(self, message, valid_if=None):
+    def announce(self, message, valid_if=None, priority=1):
         self.get_logger().info(f'Announcement: {message}')
         self.announcement_pub.publish(String(data=message))
-        self.speech.say(message, valid_if)
+        self.speech.say(message, valid_if, priority=priority)
 
     def announce_event(self, key, valid_if=None):
         message = self.event_messages[key]
         if message:
-            self.announce(message, valid_if)
+            urgent = key in ('whill_error', 'localization_lost', 'navigation_error')
+            self.announce(message, valid_if, priority=0 if urgent else 1)
+
+    def on_waypoint_event(self, msg):
+        try:
+            data = json.loads(msg.data)
+            if not isinstance(data, dict):
+                raise ValueError('Waypoint event is not an object')
+            mission_id = data.get('mission_id')
+            sequence = data.get('sequence')
+            event = data.get('event')
+            if not isinstance(mission_id, str) or not mission_id or type(sequence) is not int:
+                raise ValueError('Invalid mission ID or sequence')
+            if event not in self.waypoint_messages:
+                raise ValueError(f'Unknown waypoint event: {event}')
+            last = self.last_waypoint_seq.get(mission_id, 0)
+            if sequence <= last:
+                return  # Ignore duplicate/replayed event IDs.
+            self.last_waypoint_seq[mission_id] = sequence
+            if len(self.last_waypoint_seq) > 32:
+                self.last_waypoint_seq.pop(next(iter(self.last_waypoint_seq)))
+
+            waypoint_id = str(data.get('waypoint_id', ''))
+            match = re.fullmatch(r'wp0*(\d+)', waypoint_id, flags=re.IGNORECASE)
+            spoken_id = str(int(match.group(1))) if match else waypoint_id.replace('_', ' ')
+            template = self.waypoint_messages[event]
+            message = template.replace('{waypoint}', spoken_id)
+            priority = 0 if event in ('aborted', 'safety_warning') else (2 if event in ('reached', 'skipped', 'retrying') else 1)
+            self.announce(message, priority=priority)
+        except (ValueError, TypeError, KeyError) as error:
+            self.get_logger().warning(f'Invalid waypoint event: {error}')
 
     def mark(self, name):
         self.last_messages[name] = time.monotonic()
@@ -544,7 +560,7 @@ class SystemStatusAnnouncer(Node):
                 self.announce(started)
 
             elif previous == 'ok' and state == 'lost':
-                self.announce(lost)
+                self.announce(lost, priority=0)
 
             elif previous == 'lost' and state == 'ok':
                 self.announce(recovered)

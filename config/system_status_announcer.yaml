@@ -1,21 +1,19 @@
 system_status_announcer:
   ros__parameters:
-
-    # 音声合成
-    dictionary: /var/lib/mecab/dic/open-jtalk/naist-jdic
-    voice_file: /usr/share/hts-voice/nitech-jp-atr503-m001/nitech_jp_atr503_m001.htsvoice
+    # Offline Piper: isolated Python environment and female English voice model.
+    piper_python: /home/selab/whill_tts_venv/bin/python
+    piper_model: /home/selab/whill_tts_voices/en_US-amy-medium.onnx
     speech_rate: 1.0
+    speech_volume: 1.0
 
-    # 音声キュー
+    # Priority queue and validity window.
     speech_queue_size: 12
     speech_expiry_sec: 20.0
 
-    # 状態監視
+    # Existing system health monitoring.
     sensor_timeout_sec: 4.0
     odom_timeout_sec: 3.0
     localization_timeout_sec: 5.0
     nav2_timeout_sec: 4.0
     check_period_sec: 1.0
-
-    # アナウンス文ファイル
     messages_file: ""

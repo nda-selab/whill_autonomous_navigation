@@ -5,6 +5,8 @@ Position-only intermediate goals; optional required yaw is handled as a separate
 Nav2 Spin action after the XY target has been reached. No forced motion on load.
 """
 import argparse
+import json
+import uuid
 from datetime import datetime, timezone
 import math
 from pathlib import Path
@@ -15,6 +17,7 @@ import rclpy
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus
 from geometry_msgs.msg import PoseStamped
 from nav2_simple_commander.robot_navigator import BasicNavigator, TaskResult
+from std_msgs.msg import String
 from rclpy.duration import Duration
 from rclpy.time import Time
 from tf2_ros import Buffer, TransformException, TransformListener
@@ -22,6 +25,31 @@ import yaml
 
 from trajectory_waypoint_navigator import load_grid_map, load_footprint
 from waypoint_route_core import load_route, route_heading, filter_unsafe_route
+
+
+class WaypointEventPublisher:
+    """Publish one structured announcement event per route state transition."""
+
+    def __init__(self, node):
+        self.publisher = node.create_publisher(String, '/navigation/waypoint_event', 10)
+        self.mission_id = uuid.uuid4().hex
+        self.sequence = 0
+
+    def send(self, event, waypoint_id=None, reason=None):
+        self.sequence += 1
+        data = {'mission_id': self.mission_id, 'sequence': self.sequence, 'event': event}
+        if waypoint_id is not None:
+            data['waypoint_id'] = waypoint_id
+        if reason is not None:
+            data['reason'] = str(reason)
+        self.publisher.publish(String(data=json.dumps(data, ensure_ascii=False)))
+
+    def flush(self):
+        # Prevent final completed/aborted events being lost at publisher shutdown.
+        try:
+            return self.publisher.wait_for_all_acked(Duration(seconds=0.5))
+        except Exception:
+            return False
 
 
 def yaw_quaternion(yaw):
@@ -211,10 +239,12 @@ def main():
         check_position_goal_checker(params_file)
     rclpy.init()
     nav = BasicNavigator(node_name='waypoint_route_runner')
+    events = WaypointEventPublisher(nav) if args.execute else None
     gate = UrgHealthGate(nav) if args.execute else None
     tf_buffer = Buffer() if args.execute else None
     tf_listener = TransformListener(tf_buffer, nav, spin_thread=False) if args.execute else None
     results = [{'id': s['id'], 'status': 'skipped', 'reason': s['reason']} for s in skipped]
+    preflight_skips = {entry['id']: entry for entry in results}
     try:
         nav.waitUntilNav2Active(localizer='map_server')
         if args.execute:
@@ -229,7 +259,9 @@ def main():
             if planned is None or not planned.poses:
                 if not w.skippable:
                     raise RuntimeError(f'No valid plan to required waypoint {w.id}; mission aborted')
-                results.append({'id': w.id, 'status': 'skipped', 'reason': 'preflight_planner'})
+                entry = {'id': w.id, 'status': 'skipped', 'reason': 'preflight_planner'}
+                results.append(entry)
+                preflight_skips[w.id] = entry
                 print(f'SKIP {w.id}: planner returned no path')
                 continue
             accepted.append((w, pose))
@@ -241,7 +273,14 @@ def main():
             print('PLAN PREVIEW ONLY: no movement commands sent')
             return 0
 
-        for w, pose in accepted:
+        events.send('started')
+        accepted_by_id = {w.id: (w, pose) for w, pose in accepted}
+        for original in route.waypoints:
+            prior_skip = preflight_skips.get(original.id)
+            if prior_skip is not None:
+                events.send('skipped', original.id, prior_skip['reason'])
+                continue
+            w, pose = accepted_by_id[original.id]
             if not gate.healthy():
                 raise RuntimeError('URG diagnostics unhealthy; mission aborted')
             # Update pose stamp and re-plan from live pose before each goal.
@@ -250,12 +289,15 @@ def main():
             if planned is None or not planned.poses:
                 if w.skippable:
                     results.append({'id': w.id, 'status': 'skipped', 'reason': 'live_planner'})
+                    events.send('skipped', w.id, 'live_planner')
                     continue
                 raise RuntimeError(f'Live path unavailable to required {w.id}')
             state = 'failed'
             for attempt in range(args.max_retries + 1):
                 if not gate.healthy():
                     raise RuntimeError('URG diagnostics unhealthy; mission aborted')
+                if attempt > 0:
+                    events.send('retrying', w.id)
                 pose.header.stamp = nav.get_clock().now().to_msg()
                 if not nav.goToPose(pose):
                     state = 'rejected'
@@ -275,22 +317,33 @@ def main():
                     state = 'yaw_failed'
             if state == 'succeeded':
                 results.append({'id': w.id, 'status': 'reached'})
+                events.send('reached', w.id)
             elif w.skippable:
                 results.append({'id': w.id, 'status': 'skipped', 'reason': state})
+                events.send('skipped', w.id, state)
             else:
                 raise RuntimeError(f'Required waypoint {w.id} failed: {state}')
+        events.send('completed')
         print('Mission complete; required goal reached.')
         return 0
     except KeyboardInterrupt:
         print('Interrupted; canceling navigation', file=sys.stderr)
-        if args.execute and not cancel_and_confirm(nav):
+        canceled = not args.execute or cancel_and_confirm(nav)
+        if events is not None:
+            events.send('aborted' if canceled else 'safety_warning', reason='keyboard_interrupt')
+        if not canceled:
             print('WARNING: navigation cancellation not confirmed', file=sys.stderr)
         return 130
     except (RuntimeError, TransformException) as error:
+        if events is not None:
+            event = 'safety_warning' if 'cancellation not confirmed' in str(error).lower() else 'aborted'
+            events.send(event, reason=error)
         print(f'ABORTED: {error}', file=sys.stderr)
         results.append({'id': 'mission', 'status': 'aborted', 'reason': str(error)})
         return 1
     finally:
+        if events is not None:
+            events.flush()
         if args.execute:
             log = args.results_file or args.route.expanduser().with_suffix('.results.yaml')
             report = {'timestamp_utc': datetime.now(timezone.utc).isoformat(),
