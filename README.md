@@ -154,93 +154,28 @@ behavior_server:
     robot_base_frame: base_link
 ```
 
-### Integrated Bringup
+## Quik Start
 
+Terminal 1: WHILL Nav2 Bringup
 ```bash
 ros2 launch whill_nav2_bringup autonomous_navigation.launch.py \
-  prior_2d_map:='/home/selab/data/selab/nav2_map_csf/map.yaml'
+  prior_2d_map:=< 2D Map YAML File > \
+  prior_3d_map:=< 3D Map PCD or PLY File >
 ```
 
 起動後，RVizの「2D Pose Estimate」からロボットの初期位置・姿勢を設定する．
 `map → odom`のTFが配信され，Nav2の自己位置が正常に取得できることを確認してから自律走行を開始する．
 
-### Individual Launch Commands (Debugging)
-
-統合起動とは併用しない．
-
-1. Ouster OS2-64
-
+Terminal 2: Waypoint Route Runner
 ```bash
-ros2 launch whill_nav2_bringup os2_64.launch.py
+ros2 run whill_nav2_bringup waypoint_route_runner.py \
+  --route < Waypoints YAML File > \
+  --map-yaml < 2D Map YAML File > \
+  --nav2-params '/home/selab/ros2_ws/src/whill_nav2_bringup/config/nav2_params.yaml'
 ```
 
-2. Hokuyo URG
-
-```bash
-ros2 launch whill_nav2_bringup urg.launch.py
-```
-
-3. FAST-LIO2
-
-```bash
-ros2 launch fast_lio mapping.launch.py \
-  config_file:=os2_64.yaml \
-  rviz:=false
-```
-
-- 標準設定：`os2_64.yaml`
-- 屋内環境設定：`os2_64_indoor.yaml`
-- 屋外環境設定：`os2_64_outdoor.yaml`
-
-4. Static TF
-
-```bash
-ros2 launch whill_nav2_bringup static_tf.launch.py
-```
-
-5. PointCloud to LaserScan
-
-```bash
-ros2 launch whill_nav2_bringup pointcloud_to_laserscan.launch.py
-```
-
-6. Nav2, Map Server
-
-```bash
-ros2 launch whill_nav2_bringup whill_nav2.launch.py \
-  prior_2d_map:='/home/selab/data/selab/nav2_map_csf/map.yaml'
-```
-
-7. RViz
-
-```bash
-ros2 launch whill_nav2_bringup visualization.launch.py
-```
-
-8. WHILL driver
-
-```bash
-ros2 launch whill_bringup whill_launch.py
-```
-
-### Waypoint Navigation
-
-10. 実行
-
-```bash
-python3 scripts/trajectory_waypoint_navigator.py \
-  --trajectory /home/selab/data/bikan_outdoor/odom.csv \
-  --map-yaml /home/selab/ros2_ws/src/whill_nav2_bringup/maps/map.yaml \
-  --nav2-params config/nav2_params.yaml \
-  --start-index 150 \
-  --end-index 350 \
-  --waypoint-spacing 0.80 \
-  --corner-angle-deg 15.0 \
-  --clearance 0.45 \
-  --plan-preview
-```
-
-安全確認後，`--execute`を指定すると，実走行を開始する．
+- `--plan-preview` Plannerによる経路確認の実行（Nav2起動時に使用）
+- `--execute`　走行指令の送信
 
 ## Documentation
 

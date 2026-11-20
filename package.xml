@@ -28,6 +28,7 @@
   <exec_depend>fast_lio</exec_depend>
   <exec_depend>ouster_ros</exec_depend>
   <exec_depend>pointcloud_to_laserscan</exec_depend>
+  <exec_depend>lidar_localization_ros2</exec_depend>
 
   <!-- 3D Submap Localization -->
   <depend>rclcpp</depend>

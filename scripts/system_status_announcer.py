@@ -384,7 +384,7 @@ class SystemStatusAnnouncer(Node):
             spoken_id = str(int(match.group(1))) if match else waypoint_id.replace('_', ' ')
             template = self.waypoint_messages[event]
             message = template.replace('{waypoint}', spoken_id)
-            priority = 0 if event in ('aborted', 'safety_warning') else (2 if event in ('reached', 'skipped', 'retrying') else 1)
+            priority = 0 if event in ('aborted', 'safety_warning') else 1
             self.announce(message, priority=priority)
         except (ValueError, TypeError, KeyError) as error:
             self.get_logger().warning(f'Invalid waypoint event: {error}')

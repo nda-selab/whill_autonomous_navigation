@@ -2,74 +2,40 @@
 
 ## Selab
 
-WHILL Nav2 Bringup
+Terminal 1: WHILL Nav2 Bringup
 ```bash
 ros2 launch whill_nav2_bringup autonomous_navigation.launch.py \
-  prior_2d_map:=/home/selab/data/selab/nav2_map_csf/map.yaml
+  prior_2d_map:=/home/selab/data/selab/nav2_map_csf/map.yaml \
+  prior_3d_map:=/home/selab/data/selab/pointcloud_2016-02-12-01-30-04_replay_loop_closed.pcd
 ```
 
-LiDAR Localization ROS2
+Terminal 2: Waypoint Route Runner
 ```bash
-ros2 run lidar_localization_ros2 lidar_localization_node \
-  --ros-args \
-  --params-file /home/selab/ros2_ws/src/lidar_localization_ros2/param/localization.yaml \
-  -p map_path:=/home/selab/data/selab/pointcloud_2016-02-12-01-30-04_replay_loop_closed.pcd \
-  -p use_sim_time:=false \
-  -p set_initial_pose:=false \
-  -p global_frame_id:=map \
-  -p odom_frame_id:=odom \
-  -p base_frame_id:=base_link \
-  -p enable_map_odom_tf:=true \
-  -p use_odom_tf_prediction:=true \
-  -p use_imu_preintegration:=false \
-  -p use_imu:=false \
-  -p use_twist_prediction:=false \
-  -p use_odom:=false \
-  -p use_continuous_time_deskew:=false \
-  -p enable_timer_publishing:=true \
-  -p pose_publish_frequency:=20.0 \
-  -p publish_bridge_pose_when_lost:=true \
-  -r /cloud:=/cloud_registered 
+ros2 run whill_nav2_bringup waypoint_route_runner.py \
+  --route /home/selab/data/selab/nav2_map_csf/waypoints.yaml \
+  --map-yaml /home/selab/data/selab/nav2_map_csf/map.yaml \
+  --nav2-params /home/selab/ros2_ws/src/whill_nav2_bringup/config/nav2_params.yaml
 ```
 
-Lifecycle
-```bash
-ros2 run lidar_localization_ros2 start_lifecycle_node.py lidar_localization
-```
+- `--plan-preview` Plannerによる経路確認の実行（Nav2起動時に使用）
+- `--execute`　走行指令の送信
 
-## NDA 361
+## NDA outdoor
 
-WHILL Nav2 Bringup
+Terminal 1: WHILL Nav2 Bringup
 ```bash
 ros2 launch whill_nav2_bringup autonomous_navigation.launch.py \
-  prior_2d_map:=/home/selab/data/nda_361/nav2_map_csf/map.yaml
+  prior_2d_map:=/home/selab/data/nda_outdoor/nav2_map_csf/map.yaml \
+  prior_3d_map:=/home/selab/data/nda_outdoor/pointcloud_ds_2016-02-12-01-29-20_replay_loop_closed.pcd
 ```
 
-LiDAR Localization ROS2
+Terminal 2: Waypoint Route Runner
 ```bash
-ros2 run lidar_localization_ros2 lidar_localization_node \
-  --ros-args \
-  --params-file /home/selab/ros2_ws/src/lidar_localization_ros2/param/localization.yaml \
-  -p map_path:=/home/selab/data/nda_361/loglio2/loglio2_merged_segmented_level.ply \
-  -p use_sim_time:=false \
-  -p set_initial_pose:=false \
-  -p global_frame_id:=map \
-  -p odom_frame_id:=odom \
-  -p base_frame_id:=base_link \
-  -p enable_map_odom_tf:=true \
-  -p use_odom_tf_prediction:=true \
-  -p use_imu_preintegration:=false \
-  -p use_imu:=false \
-  -p use_twist_prediction:=false \
-  -p use_odom:=false \
-  -p use_continuous_time_deskew:=false \
-  -p enable_timer_publishing:=true \
-  -p pose_publish_frequency:=20.0 \
-  -p publish_bridge_pose_when_lost:=true \
-  -r /cloud:=/cloud_registered 
+ros2 run whill_nav2_bringup waypoint_route_runner.py \
+  --route /home/selab/data/nda_outdoor/nav2_map_csf/waypoints.yaml \
+  --map-yaml /home/selab/data/nda_outdoor/nav2_map_csf/map.yaml \
+  --nav2-params /home/selab/ros2_ws/src/whill_nav2_bringup/config/nav2_params.yaml
 ```
 
-Lifecycle
-```bash
-ros2 run lidar_localization_ros2 start_lifecycle_node.py lidar_localization
-```
+- `--plan-preview` Plannerによる経路確認の実行（Nav2起動時に使用）
+- `--execute`　走行指令の送信

@@ -117,6 +117,7 @@ def generate_launch_description():
         ),
         launch_arguments={
             'use_sim_time': LaunchConfiguration('use_sim_time'),
+            'prior_3d_map': LaunchConfiguration('prior_3d_map'),
         }.items(),
     )
 
@@ -262,9 +263,14 @@ def generate_launch_description():
             description='Launch RViz',
         ),
 
-        DeclareLaunchArgument(
+                DeclareLaunchArgument(
             'prior_2d_map',
             description='Absolute path to 2D occupancy grid map YAML',
+        ),
+        
+        DeclareLaunchArgument(
+            'prior_3d_map',
+            description='Absolute path to prior 3D point cloud map',
         ),
 
         DeclareLaunchArgument(
