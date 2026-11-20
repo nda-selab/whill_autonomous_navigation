@@ -51,6 +51,7 @@ class SpeechWorker:
         self.expiry_sec = expiry_sec
         self.pending = []
         self.sequence = 0
+        self.canceled_missions = set()
         self.condition = threading.Condition()
         self.stop_event = threading.Event()
         self.thread = None
@@ -69,13 +70,15 @@ class SpeechWorker:
         self.thread = threading.Thread(target=self.run, daemon=True, name='speech_worker')
         self.thread.start()
 
-    def say(self, message, valid_if=None, priority=1):
+    def say(self, message, valid_if=None, priority=1, mission_id=None):
         if not self.available or self.stop_event.is_set() or not message:
             return
 
         with self.condition:
+            if mission_id in self.canceled_missions and priority != 0:
+                return
+
             if len(self.pending) >= self.queue_size:
-                # Evict a lower-priority queued item to preserve critical alerts.
                 worst = max(range(len(self.pending)), key=lambda i: self.pending[i][:2])
                 if self.pending[worst][0] <= priority:
                     self.logger.warning(f'Speech queue full; dropped: {message}')
@@ -86,9 +89,19 @@ class SpeechWorker:
 
             self.sequence += 1
             heapq.heappush(
-                self.pending, (priority, self.sequence, time.monotonic(), message, valid_if)
+                self.pending,
+                (priority, self.sequence, time.monotonic(), message, valid_if, mission_id),
             )
             self.condition.notify()
+
+    def cancel_mission(self, mission_id):
+        with self.condition:
+            self.canceled_missions.add(mission_id)
+            self.pending = [
+                item for item in self.pending if item[5] != mission_id
+            ]
+            heapq.heapify(self.pending)
+            self.condition.notify_all()
 
     def run(self):
         with tempfile.TemporaryDirectory(prefix='whill_voice_') as directory:
@@ -99,7 +112,7 @@ class SpeechWorker:
                         self.condition.wait(timeout=0.2)
                     if self.stop_event.is_set():
                         break
-                    priority, _, queued_at, message, valid_if = heapq.heappop(self.pending)
+                    priority, _, queued_at, message, valid_if, mission_id = heapq.heappop(self.pending)
 
                 try:
                     if time.monotonic() - queued_at > self.expiry_sec:
@@ -127,13 +140,29 @@ class SpeechWorker:
                                 pass
                         cache[message] = wav_path
 
-                    # The queue prioritizes pending messages; playback already in progress
-                    # is not interrupted. Navigation safety is never dependent on audio.
-                    subprocess.run(
-                        ['aplay', '-q', wav_path],
-                        stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
-                        timeout=30, check=True,
-                    )
+                    # 音声生成後、再生開始直前に中断状態を確認
+                    with self.condition:
+                        if mission_id in self.canceled_missions and priority != 0:
+                            continue
+
+                        player = subprocess.Popen(
+                            ['aplay', '-q', wav_path],
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.PIPE,
+                        )
+
+                    try:
+                        _, stderr = player.communicate(timeout=30)
+                    except subprocess.TimeoutExpired:
+                        player.kill()
+                        player.communicate()
+                        raise
+
+                    if player.returncode != 0:
+                        raise subprocess.CalledProcessError(
+                            player.returncode, player.args, stderr=stderr
+                        )
+
                 except (OSError, subprocess.SubprocessError) as error:
                     self.logger.error(f'Audio synthesis/playback failed: {error}')
 
@@ -188,6 +217,7 @@ class SystemStatusAnnouncer(Node):
         self.event_messages = messages['events']
         self.waypoint_messages = messages['waypoints']
         self.last_waypoint_seq = {}
+        self.terminal_missions = set()
 
         def param(name):
             return self.get_parameter(name).value
@@ -349,10 +379,15 @@ class SystemStatusAnnouncer(Node):
     # Announcements
     # -----------------------------------------------------
 
-    def announce(self, message, valid_if=None, priority=1):
+    def announce(self, message, valid_if=None, priority=1, mission_id=None):
         self.get_logger().info(f'Announcement: {message}')
         self.announcement_pub.publish(String(data=message))
-        self.speech.say(message, valid_if, priority=priority)
+        self.speech.say(
+            message,
+            valid_if,
+            priority=priority,
+            mission_id=mission_id,
+        )
 
     def announce_event(self, key, valid_if=None):
         message = self.event_messages[key]
@@ -365,27 +400,42 @@ class SystemStatusAnnouncer(Node):
             data = json.loads(msg.data)
             if not isinstance(data, dict):
                 raise ValueError('Waypoint event is not an object')
+
             mission_id = data.get('mission_id')
             sequence = data.get('sequence')
             event = data.get('event')
+
             if not isinstance(mission_id, str) or not mission_id or type(sequence) is not int:
                 raise ValueError('Invalid mission ID or sequence')
             if event not in self.waypoint_messages:
                 raise ValueError(f'Unknown waypoint event: {event}')
+
             last = self.last_waypoint_seq.get(mission_id, 0)
-            if sequence <= last:
-                return  # Ignore duplicate/replayed event IDs.
+            if sequence <= last or mission_id in self.terminal_missions:
+                return
+
             self.last_waypoint_seq[mission_id] = sequence
             if len(self.last_waypoint_seq) > 32:
-                self.last_waypoint_seq.pop(next(iter(self.last_waypoint_seq)))
+                old_id = next(iter(self.last_waypoint_seq))
+                self.last_waypoint_seq.pop(old_id)
+                self.terminal_missions.discard(old_id)
 
             waypoint_id = str(data.get('waypoint_id', ''))
             match = re.fullmatch(r'wp0*(\d+)', waypoint_id, flags=re.IGNORECASE)
             spoken_id = str(int(match.group(1))) if match else waypoint_id.replace('_', ' ')
+
+            terminal = event in ('completed', 'aborted', 'safety_warning')
+            urgent = event in ('aborted', 'safety_warning')
+
+            if urgent:
+                self.speech.cancel_mission(mission_id)
+            if terminal:
+                self.terminal_missions.add(mission_id)
+
             template = self.waypoint_messages[event]
             message = template.replace('{waypoint}', spoken_id)
-            priority = 0 if event in ('aborted', 'safety_warning') else 1
-            self.announce(message, priority=priority)
+            self.announce(message, priority=0 if urgent else 1, mission_id=mission_id)
+
         except (ValueError, TypeError, KeyError) as error:
             self.get_logger().warning(f'Invalid waypoint event: {error}')
 
