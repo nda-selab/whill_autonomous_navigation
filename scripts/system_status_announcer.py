@@ -41,7 +41,7 @@ NAV2_LIFECYCLE_NODES = (
 class SpeechWorker:
     """Synthesize English speech with Piper and play it in a separate thread."""
 
-    def __init__(self, logger, piper_python, model, rate, volume, queue_size, expiry_sec):
+    def __init__(self, logger, piper_python, model, rate, volume, queue_size, expiry_sec, enabled=True):
         self.logger = logger
         self.piper_python = piper_python
         self.model = model
@@ -55,6 +55,10 @@ class SpeechWorker:
         self.condition = threading.Condition()
         self.stop_event = threading.Event()
         self.thread = None
+
+        if not enabled:
+            self.available = False
+            return
 
         model_path = Path(model)
         self.available = (
@@ -179,6 +183,7 @@ class SystemStatusAnnouncer(Node):
     def __init__(self):
         super().__init__('system_status_announcer')
 
+        self.declare_parameter('enable_speech', True)
         self.declare_parameter('piper_python', '/home/selab/whill_tts_venv/bin/python')
         self.declare_parameter('piper_model', '/home/selab/whill_tts_voices/en_US-amy-medium.onnx')
         self.declare_parameter('speech_rate', 1.0)
@@ -248,6 +253,7 @@ class SystemStatusAnnouncer(Node):
             '/system/announcement',
             10,
         )
+        self.status_pub = self.create_publisher(String, '/system/status', 10)
 
         queue_size = int(param('speech_queue_size'))
         expiry_sec = float(param('speech_expiry_sec'))
@@ -263,6 +269,7 @@ class SystemStatusAnnouncer(Node):
             speech_volume,
             queue_size,
             expiry_sec,
+            enabled=bool(param('enable_speech')),
         )
 
         self.last_messages = {
@@ -700,12 +707,30 @@ class SystemStatusAnnouncer(Node):
 
         was_ready = self.system_ready
         self.system_ready = ready
+        self.publish_status_snapshot()
 
         if ready and not was_ready:
             self.announce_event(
                 'system_ready',
                 valid_if=lambda: self.system_ready,
             )
+
+    def publish_status_snapshot(self):
+        # Existing sensor subscriptions and lifecycle polls are reused; no new
+        # large PointCloud2/LaserScan subscriptions are introduced.
+        feed = dict(self.feed_states)
+        whill_seen = feed.get('whill') == 'ok'
+        whill = {'state': ('ok' if self.whill_power_ok else 'error') if whill_seen else 'unknown',
+                 'power_on': self.whill_power_ok if whill_seen else None}
+        localization = {'state': 'ok' if self.localized else
+                        ('warning' if self.last_status else 'unknown'),
+                        'detail': self.last_status[:100]}
+        nav2 = {'state': 'active' if self.nav_active else
+                ('warning' if any(value is not None for value in self.active_updates.values()) else 'unknown')}
+        payload = {'version': 1, 'ready': bool(self.system_ready),
+                   'whill': whill, 'localization': localization,
+                   'nav2': nav2, 'feeds': feed}
+        self.status_pub.publish(String(data=json.dumps(payload, ensure_ascii=False)))
 
     def close(self):
         self.speech.close()

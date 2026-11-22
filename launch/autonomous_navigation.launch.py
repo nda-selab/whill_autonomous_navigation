@@ -17,12 +17,13 @@ def generate_launch_description():
         executable='system_status_announcer.py',
         name='system_status_announcer',
         output='screen',
-        condition=IfCondition(
-            LaunchConfiguration('enable_voice_announcements')
-        ),
         parameters=[
             LaunchConfiguration('announcer_params_file'),
             {
+                'enable_speech': ParameterValue(
+                    LaunchConfiguration('enable_voice_announcements'),
+                    value_type=bool,
+                ),
                 'use_sim_time': ParameterValue(
                     LaunchConfiguration('use_sim_time'),
                     value_type=bool,
