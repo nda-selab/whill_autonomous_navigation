@@ -1,0 +1,11 @@
+environment:
+  name: bikan_indoor
+
+  prior_2d_map: /home/selab/data/bikan_indoor/maps/map.yaml
+  prior_3d_map: /home/selab/data/bikan_indoor/PCD/merged_map.pcd
+  waypoints_file: /home/selab/data/bikan_indoor/maps/waypoints.yaml
+
+  global_costmap_resolution: 0.05
+  lattice_filepath: /home/selab/ros2_ws/src/whill_nav2_bringup/config/lattice/diff_5cm.json
+
+  use_sim_time: false

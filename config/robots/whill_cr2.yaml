@@ -1,0 +1,10 @@
+robot:
+  name: whill_cr2
+
+  urg_devices:
+    front: /dev/serial/by-path/pci-0000:00:14.0-usb-0:1.3:1.0
+    left: /dev/serial/by-path/pci-0000:00:14.0-usb-0:1.4:1.0
+    right: /dev/serial/by-path/pci-0000:00:14.0-usb-0:4:1.0
+
+  ouster_params: config/os2_64_params.yaml
+  urg_params: config/urg_params.yaml

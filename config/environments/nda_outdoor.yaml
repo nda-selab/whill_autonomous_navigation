@@ -1,0 +1,11 @@
+environment:
+  name: nda_outdoor
+
+  prior_2d_map: /home/selab/data/nda_outdoor/nav2_map_csf/map.yaml
+  prior_3d_map: /home/selab/data/nda_outdoor/pointcloud_ds_2016-02-12-01-29-20_replay_loop_closed.pcd
+  waypoints_file: /home/selab/data/nda_outdoor/nav2_map_csf/waypoints.yaml
+
+  global_costmap_resolution: 0.10
+  lattice_filepath: /home/selab/ros2_ws/src/whill_nav2_bringup/config/lattice/diff_10cm.json
+
+  use_sim_time: false
