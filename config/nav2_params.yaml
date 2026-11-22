@@ -112,6 +112,7 @@ local_costmap:
         ouster_scan:
           topic: /scan_ouster
           data_type: "LaserScan"
+          sensor_frame: os_sensor
           marking: true
           clearing: true
           inf_is_valid: true
@@ -125,6 +126,7 @@ local_costmap:
         urg_front:
           topic: /urg_front/scan
           data_type: "LaserScan"
+          sensor_frame: laser_front
           marking: true
           clearing: true
           inf_is_valid: true
@@ -205,29 +207,11 @@ global_costmap:
       transform_tolerance: 0.5
       footprint: "[[0.80, 0.275], [0.80, -0.275], [-0.25, -0.275], [-0.25, 0.275]]"
 
-      plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+      plugins: ["static_layer", "inflation_layer"]
       
       static_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
         map_subscribe_transient_local: true
-
-      obstacle_layer:
-        plugin: "nav2_costmap_2d::ObstacleLayer"
-        enabled: true
-        observation_sources: ouster_scan
-        
-        ouster_scan:
-          topic: /scan_ouster
-          data_type: "LaserScan"
-          marking: true
-          clearing: true
-          inf_is_valid: true
-          expected_update_rate: 0.5
-          obstacle_min_range: 0.1
-          obstacle_max_range: 8.0
-          raytrace_min_range: 0.0
-          raytrace_max_range: 10.0
-          max_obstacle_height: 2.0
 
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
