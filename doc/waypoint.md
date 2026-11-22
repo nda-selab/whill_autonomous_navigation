@@ -78,7 +78,7 @@ ros2 launch whill_nav2_bringup waypoint_editor.launch.py \
 RVizおよびMap server起動
 ```bash
 ros2 launch whill_nav2_bringup autonomous_navigation.launch.py \
-  prior_2d_map:=/home/selab/data/bikan_indoor/maps/map.yaml
+  prior_2d_map:=/home/selab/data/bikan_indoor/maps/map.yaml \
   prior_3d_map:=/home/selab/data/bikan_indoor/PCD/merged_map.pcd
 ```
 

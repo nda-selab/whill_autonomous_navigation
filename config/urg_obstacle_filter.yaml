@@ -2,7 +2,7 @@ urg_obstacle_filter:
   ros__parameters:
     # true: local slope/continuity with a valid floor seed
     # false: fixed base_footprint height; no floor seed required
-    enable_ground_filter: true
+    enable_ground_filter: false
 
     # Near-robot floor seed (used only when enable_ground_filter is true)
     floor_fit_x_min: -0.05

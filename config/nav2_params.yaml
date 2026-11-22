@@ -118,7 +118,7 @@ local_costmap:
           expected_update_rate: 0.5
           obstacle_min_range: 0.1
           obstacle_max_range: 8.0
-          raytrace_min_range: 0.1
+          raytrace_min_range: 0.0
           raytrace_max_range: 10.0
           max_obstacle_height: 2.0
           min_obstacle_height: -2.0
@@ -131,7 +131,7 @@ local_costmap:
           expected_update_rate: 0.5
           obstacle_min_range: 0.05
           obstacle_max_range: 4.0
-          raytrace_min_range: 0.05
+          raytrace_min_range: 0.0
           raytrace_max_range: 4.0
           min_obstacle_height: -2.0
           max_obstacle_height: 2.0
@@ -146,6 +146,7 @@ local_costmap:
         urg_left:
           topic: /urg_left/obstacles
           data_type: "PointCloud2"
+          sensor_frame: laser_left
           marking: true
           clearing: false
           expected_update_rate: 0.5
@@ -158,13 +159,14 @@ local_costmap:
           marking: false
           clearing: true
           expected_update_rate: 0.5
-          raytrace_min_range: 0.05
+          raytrace_min_range: 0.0
           raytrace_max_range: 1.6
           min_obstacle_height: -100.0
           max_obstacle_height: 100.0
         urg_right:
           topic: /urg_right/obstacles
           data_type: "PointCloud2"
+          sensor_frame: laser_right
           marking: true
           clearing: false
           expected_update_rate: 0.5
@@ -177,7 +179,7 @@ local_costmap:
           marking: false
           clearing: true
           expected_update_rate: 0.5
-          raytrace_min_range: 0.05
+          raytrace_min_range: 0.0
           raytrace_max_range: 1.6
           min_obstacle_height: -100.0
           max_obstacle_height: 100.0
@@ -223,7 +225,7 @@ global_costmap:
           expected_update_rate: 0.5
           obstacle_min_range: 0.1
           obstacle_max_range: 8.0
-          raytrace_min_range: 0.1
+          raytrace_min_range: 0.0
           raytrace_max_range: 10.0
           max_obstacle_height: 2.0
 
@@ -248,8 +250,8 @@ planner_server:
       max_on_approach_iterations: 1000
       max_planning_time: 5.0
 
-      #lattice_filepath: /home/selab/ros2_ws/src/whill_nav2_bringup/config/lattice/diff_12cm.json # 0.12m resolution, 0.5m turning radius
-      lattice_filepath: /opt/ros/humble/share/nav2_smac_planner/sample_primitives/5cm_resolution/0.5m_turning_radius/diff/output.json # 0.05m resolution, 0.5m turning radius
+      lattice_filepath: /home/selab/ros2_ws/src/whill_nav2_bringup/config/lattice/diff_12cm.json # 0.12m resolution, 0.5m turning radius
+      #lattice_filepath: /opt/ros/humble/share/nav2_smac_planner/sample_primitives/5cm_resolution/0.5m_turning_radius/diff/output.json # 0.05m resolution, 0.5m turning radius
 
       allow_reverse_expansion: false
       cost_penalty: 2.0
