@@ -1,9 +1,14 @@
 urg_obstacle_filter:
   ros__parameters:
+    # true: local slope/continuity with a valid floor seed
+    # false: fixed base_footprint height; no floor seed required
+    enable_ground_filter: true
+
+    # Near-robot floor seed (used only when enable_ground_filter is true)
     floor_fit_x_min: -0.05
     floor_fit_x_max: 0.45
     floor_fit_z_abs_max: 0.18
-    floor_inlier_tolerance: 0.025
+    floor_inlier_tolerance: 0.025  # Also selects observed clearing points in fixed-height mode
     floor_min_inliers: 8
     floor_min_span: 0.15
     floor_anchor_x_max: 0.20
@@ -11,16 +16,17 @@ urg_obstacle_filter:
     floor_max_slope: 0.25
     floor_max_intercept_abs: 0.12
 
+    # Near-field obstacle region (x is from base_link/base_footprint origin)
     obstacle_x_min: -0.05
-    obstacle_x_max: 1.50
+    obstacle_x_max: 1.20
     obstacle_min_height: 0.05
     obstacle_max_height: 0.40
     min_cluster_points: 2
 
-    floor_track_window: 0.25
+    floor_track_window: 0.15
     floor_track_max_gap: 0.12
     floor_track_max_step: 0.02
 
     sensor_timeout_sec: 0.6
     tf_timeout_sec: 0.2
-    max_scan_range: 4.0
+    max_scan_range: 1.6

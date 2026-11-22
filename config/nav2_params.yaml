@@ -159,7 +159,7 @@ local_costmap:
           clearing: true
           expected_update_rate: 0.5
           raytrace_min_range: 0.05
-          raytrace_max_range: 4.0
+          raytrace_max_range: 1.6
           min_obstacle_height: -100.0
           max_obstacle_height: 100.0
         urg_right:
@@ -178,7 +178,7 @@ local_costmap:
           clearing: true
           expected_update_rate: 0.5
           raytrace_min_range: 0.05
-          raytrace_max_range: 4.0
+          raytrace_max_range: 1.6
           min_obstacle_height: -100.0
           max_obstacle_height: 100.0
 
