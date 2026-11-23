@@ -4,7 +4,6 @@ from launch.launch_description_sources import AnyLaunchDescriptionSource
 from launch.substitutions import (LaunchConfiguration, PathJoinSubstitution)
 from launch_ros.substitutions import FindPackageShare
 from launch_ros.actions import Node
-from launch.conditions import IfCondition
 from launch_ros.descriptions import ParameterValue
 
 def generate_launch_description():
@@ -93,13 +92,38 @@ def generate_launch_description():
         }.items(),
     )
 
-    urg_obstacle_filter = IncludeLaunchDescription(
+    # =========================================================
+    # Obstacle Filters
+    # =========================================================
+    ouster_obstacle_filter = IncludeLaunchDescription(
         AnyLaunchDescriptionSource(
             PathJoinSubstitution([
                 FindPackageShare('whill_nav2_bringup'),
                 'launch',
                 'components',
-                'urg_obstacle_filter.launch.py',
+                'ouster_obstacle_filter.launch.py',
+            ])
+        )
+    )
+
+    urg_front_obstacle_filter = IncludeLaunchDescription(
+        AnyLaunchDescriptionSource(
+            PathJoinSubstitution([
+                FindPackageShare('whill_nav2_bringup'),
+                'launch',
+                'components',
+                'urg_front_obstacle_filter.launch.py',
+            ])
+        )
+    )
+
+    urg_side_obstacle_filter = IncludeLaunchDescription(
+        AnyLaunchDescriptionSource(
+            PathJoinSubstitution([
+                FindPackageShare('whill_nav2_bringup'),
+                'launch',
+                'components',
+                'urg_side_obstacle_filter.launch.py',
             ])
         )
     )
@@ -119,24 +143,6 @@ def generate_launch_description():
         launch_arguments={
             'use_sim_time': LaunchConfiguration('use_sim_time'),
             'prior_3d_map': LaunchConfiguration('prior_3d_map'),
-        }.items(),
-    )
-
-    # =========================================================
-    # PointCloud to LaserScan
-    # =========================================================
-    pointcloud_to_laserscan = IncludeLaunchDescription(
-        AnyLaunchDescriptionSource(
-            PathJoinSubstitution([
-                FindPackageShare('whill_nav2_bringup'),
-                'launch',
-                'components',
-                'pointcloud_to_laserscan.launch.py',
-            ])
-        ),
-        launch_arguments={
-            'pointcloud_to_laserscan_params_file':
-                LaunchConfiguration('pointcloud_to_laserscan_params_file'),
         }.items(),
     )
 
@@ -229,16 +235,6 @@ def generate_launch_description():
         ),
 
         DeclareLaunchArgument(
-            'pointcloud_to_laserscan_params_file',
-            default_value=PathJoinSubstitution([
-                FindPackageShare('whill_nav2_bringup'),
-                'config',
-                'pointcloud_to_laserscan_params.yaml',
-            ]),
-            description='PointCloud to LaserScan parameter YAML file',
-        ),
-
-        DeclareLaunchArgument(
             'nav2_params_file',
             default_value=PathJoinSubstitution([
                 FindPackageShare('whill_nav2_bringup'),
@@ -292,8 +288,9 @@ def generate_launch_description():
         ]),
 
         TimerAction(period=10.0, actions=[
-            pointcloud_to_laserscan,
-            urg_obstacle_filter,
+            ouster_obstacle_filter,
+            urg_front_obstacle_filter,
+            urg_side_obstacle_filter,
             cmd_vel_watchdog,
             nav2,
         ]),

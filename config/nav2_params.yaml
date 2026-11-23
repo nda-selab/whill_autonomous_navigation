@@ -112,45 +112,63 @@ local_costmap:
         enabled: true
         footprint_clearing_enabled: true
         combination_method: 1
-        min_obstacle_height: -0.70
-        max_obstacle_height: 0.10
-        observation_sources: ouster_points
-        ouster_points:
-          topic: /ouster/points
+        min_obstacle_height: -100.0
+        max_obstacle_height: 100.0
+        observation_sources: ouster_marking ouster_clearing
+        ouster_marking:
+          topic: /ouster/obstacles
           data_type: "PointCloud2"
           sensor_frame: os_lidar
           marking: true
-          clearing: true
+          clearing: false
           expected_update_rate: 0.5
           obstacle_min_range: 0.1
           obstacle_max_range: 8.0
+          min_obstacle_height: -100.0
+          max_obstacle_height: 100.0
+        ouster_clearing:
+          topic: /ouster/clearing
+          data_type: "PointCloud2"
+          sensor_frame: os_lidar
+          marking: false
+          clearing: true
+          expected_update_rate: 0.5
           raytrace_min_range: 0.0
           raytrace_max_range: 10.0
-          max_obstacle_height: 2.0
-          min_obstacle_height: -2.0
+          min_obstacle_height: -100.0
+          max_obstacle_height: 100.0
       
       urg_front_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: true
         footprint_clearing_enabled: true
         combination_method: 1
-        min_obstacle_height: -2.0
-        max_obstacle_height: 2.0
-        observation_sources: urg_front
-        urg_front:
-          topic: /urg_front/scan
-          data_type: "LaserScan"
+        min_obstacle_height: -100.0
+        max_obstacle_height: 100.0
+        observation_sources: urg_front_marking urg_front_clearing
+        urg_front_marking:
+          topic: /urg_front/obstacles
+          data_type: "PointCloud2"
           sensor_frame: laser_front
           marking: true
-          clearing: true
-          inf_is_valid: true
+          clearing: false
           expected_update_rate: 0.5
           obstacle_min_range: 0.05
           obstacle_max_range: 4.0
+          min_obstacle_height: -100.0
+          max_obstacle_height: 100.0
+        urg_front_clearing:
+          topic: /urg_front/clearing
+          data_type: "PointCloud2"
+          sensor_frame: laser_front
+          marking: false
+          clearing: true
+          inf_is_valid: true
+          expected_update_rate: 0.5
           raytrace_min_range: 0.0
-          raytrace_max_range: 4.0
-          min_obstacle_height: -2.0
-          max_obstacle_height: 2.0
+          raytrace_max_range: 0.4
+          min_obstacle_height: -100.0
+          max_obstacle_height: 100.0
 
       urg_left_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
@@ -159,8 +177,8 @@ local_costmap:
         combination_method: 1
         min_obstacle_height: -100.0
         max_obstacle_height: 100.0
-        observation_sources: urg_left urg_left_clear
-        urg_left:
+        observation_sources: urg_left_marking urg_left_clearing
+        urg_left_marking:
           topic: /urg_left/obstacles
           data_type: "PointCloud2"
           sensor_frame: laser_left
@@ -169,7 +187,7 @@ local_costmap:
           expected_update_rate: 0.5
           min_obstacle_height: -100.0
           max_obstacle_height: 100.0
-        urg_left_clear:
+        urg_left_clearing:
           topic: /urg_left/clearing
           data_type: "PointCloud2"
           sensor_frame: laser_left
@@ -188,8 +206,8 @@ local_costmap:
         combination_method: 1
         min_obstacle_height: -100.0
         max_obstacle_height: 100.0
-        observation_sources: urg_right urg_right_clear
-        urg_right:
+        observation_sources: urg_right_marking urg_right_clearing
+        urg_right_marking:
           topic: /urg_right/obstacles
           data_type: "PointCloud2"
           sensor_frame: laser_right
@@ -198,7 +216,7 @@ local_costmap:
           expected_update_rate: 0.5
           min_obstacle_height: -100.0
           max_obstacle_height: 100.0
-        urg_right_clear:
+        urg_right_clearing:
           topic: /urg_right/clearing
           data_type: "PointCloud2"
           sensor_frame: laser_right

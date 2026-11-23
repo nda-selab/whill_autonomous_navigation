@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 import numpy as np
+import yaml
 from diagnostic_msgs.msg import DiagnosticStatus
 from geometry_msgs.msg import TransformStamped
 from sensor_msgs.msg import LaserScan
@@ -13,11 +14,13 @@ from tf2_ros import TransformException
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 from urg_ground_geometry import ObstacleConfig
-from urg_obstacle_filter import UrgObstacleFilter
+from urg_side_obstacle_filter import UrgObstacleFilter
 
 
 class FixedHeightScanTests(unittest.TestCase):
     def setUp(self):
+        params_path = Path(__file__).resolve().parents[1] / 'config/obstacle_filter_params.yaml'
+        params = yaml.safe_load(params_path.read_text())['urg_side_obstacle_filter']['ros__parameters']
         self.scan = LaserScan()
         self.scan.header.frame_id = 'laser_left'
         self.scan.range_min = 0.05
@@ -29,8 +32,9 @@ class FixedHeightScanTests(unittest.TestCase):
         transform.transform.translation.z = 0.1  # Obstacle returns, no floor.
         self.published = {}
         self.node = SimpleNamespace(
-            cfg=ObstacleConfig(),
-            tf_timeout=0.2, max_scan_range=1.6, sensor_timeout=0.6,
+            cfg=ObstacleConfig(**{key: params[key] for key in vars(ObstacleConfig())}),
+            tf_timeout=params['tf_timeout_sec'], max_scan_range=params['max_scan_range'],
+            sensor_timeout=params['sensor_timeout_sec'],
             tf_buffer=Mock(),
             clearing_pubs={'left': 'clearing'}, obstacle_pubs={'left': 'obstacles'},
             last_valid={'left': None, 'right': None},
@@ -42,11 +46,11 @@ class FixedHeightScanTests(unittest.TestCase):
         self.node.get_clock.return_value.now.return_value.to_msg.return_value = self.scan.header.stamp
 
     def process(self, now):
-        with patch('urg_obstacle_filter.time.monotonic', return_value=now):
+        with patch('urg_side_obstacle_filter.time.monotonic', return_value=now):
             UrgObstacleFilter.process_scan(self.node, 'left', self.scan)
 
     def diagnostic(self, now):
-        with patch('urg_obstacle_filter.time.monotonic', return_value=now):
+        with patch('urg_side_obstacle_filter.time.monotonic', return_value=now):
             UrgObstacleFilter.publish_diagnostics(self.node)
         msg = self.node.diagnostic_pub.publish.call_args.args[0]
         return next(s for s in msg.status if s.name.endswith('/left'))
