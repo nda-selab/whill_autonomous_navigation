@@ -41,6 +41,7 @@
   <!-- Navigation -->
   <exec_depend>nav2_bringup</exec_depend>
   <exec_depend>nav2_common</exec_depend>
+  <exec_depend>spatio_temporal_voxel_layer</exec_depend>
   <exec_depend>nav2_controller</exec_depend>
   <exec_depend>nav2_smoother</exec_depend>
   <exec_depend>nav2_planner</exec_depend>
