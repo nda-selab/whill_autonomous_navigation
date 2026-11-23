@@ -108,7 +108,7 @@ local_costmap:
         - inflation_layer
 
       ouster_layer:
-        plugin: "spatio_temporal_voxel_layer::SpatioTemporalVoxelLayer"
+        plugin: "spatio_temporal_voxel_layer/SpatioTemporalVoxelLayer"
         enabled: true
         voxel_decay: 5.0
         decay_model: 0
