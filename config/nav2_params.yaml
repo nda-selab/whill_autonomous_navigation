@@ -100,15 +100,21 @@ local_costmap:
       transform_tolerance: 0.6
       footprint: "[[0.80, 0.275], [0.80, -0.275], [-0.25, -0.275], [-0.25, 0.275]]"
 
-      plugins: ["obstacle_layer", "urg_ground_layer", "inflation_layer"]
+      plugins:
+        - ouster_layer
+        - urg_front_layer
+        - urg_left_layer
+        - urg_right_layer
+        - inflation_layer
 
-      obstacle_layer:
+      ouster_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
-        footprint_clearing_enabled: true
         enabled: true
+        footprint_clearing_enabled: true
+        combination_method: 1
         min_obstacle_height: -2.0
         max_obstacle_height: 2.0
-        observation_sources: ouster_scan urg_front
+        observation_sources: ouster_scan
         ouster_scan:
           topic: /scan_ouster
           data_type: "LaserScan"
@@ -123,6 +129,15 @@ local_costmap:
           raytrace_max_range: 10.0
           max_obstacle_height: 2.0
           min_obstacle_height: -2.0
+      
+      urg_front_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        enabled: true
+        footprint_clearing_enabled: true
+        combination_method: 1
+        min_obstacle_height: -2.0
+        max_obstacle_height: 2.0
+        observation_sources: urg_front
         urg_front:
           topic: /urg_front/scan
           data_type: "LaserScan"
@@ -138,13 +153,14 @@ local_costmap:
           min_obstacle_height: -2.0
           max_obstacle_height: 2.0
 
-      urg_ground_layer:
+      urg_left_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
-        footprint_clearing_enabled: true
         enabled: true
+        footprint_clearing_enabled: true
+        combination_method: 1
         min_obstacle_height: -100.0
         max_obstacle_height: 100.0
-        observation_sources: urg_left urg_left_clear urg_right urg_right_clear
+        observation_sources: urg_left urg_left_clear
         urg_left:
           topic: /urg_left/obstacles
           data_type: "PointCloud2"
@@ -165,6 +181,15 @@ local_costmap:
           raytrace_max_range: 1.6
           min_obstacle_height: -100.0
           max_obstacle_height: 100.0
+
+      urg_right_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        enabled: true
+        footprint_clearing_enabled: true
+        combination_method: 1
+        min_obstacle_height: -100.0
+        max_obstacle_height: 100.0
+        observation_sources: urg_right urg_right_clear
         urg_right:
           topic: /urg_right/obstacles
           data_type: "PointCloud2"
@@ -201,7 +226,7 @@ global_costmap:
       robot_base_frame: base_link
       rolling_window: false
       track_unknown_space: true
-      resolution: 0.05
+      resolution: 0.12 # 0.05 or 0.10 or 0.12
       update_frequency: 5.0
       publish_frequency: 2.0
       transform_tolerance: 0.5
@@ -235,8 +260,8 @@ planner_server:
       max_planning_time: 5.0
 
       #lattice_filepath: /home/selab/ros2_ws/src/whill_nav2_bringup/config/lattice/diff_5cm.json
-      lattice_filepath: /home/selab/ros2_ws/src/whill_nav2_bringup/config/lattice/diff_10cm.json
-      #lattice_filepath: /home/selab/ros2_ws/src/whill_nav2_bringup/config/lattice/diff_12cm.json
+      #lattice_filepath: /home/selab/ros2_ws/src/whill_nav2_bringup/config/lattice/diff_10cm.json
+      lattice_filepath: /home/selab/ros2_ws/src/whill_nav2_bringup/config/lattice/diff_12cm.json
 
       allow_reverse_expansion: false
       cost_penalty: 2.0
