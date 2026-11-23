@@ -23,7 +23,11 @@ feeds:
     started: "Odometry is online."
     lost: "Warning. Odometry signal lost."
     recovered: "Odometry restored."
-  scan_ouster:
+  ouster_obstacles:
+    started: null
+    lost: null
+    recovered: null
+  ouster_clearing:
     started: null
     lost: null
     recovered: null

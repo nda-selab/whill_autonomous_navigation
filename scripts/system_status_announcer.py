@@ -209,7 +209,7 @@ class SystemStatusAnnouncer(Node):
 
         required_feeds = (
             'whill', 'ouster', 'urg_front', 'urg_left',
-            'urg_right', 'odom', 'scan_ouster',
+            'urg_right', 'odom', 'ouster_obstacles', 'ouster_clearing',
         )
 
         self.feed_messages = {
@@ -334,9 +334,15 @@ class SystemStatusAnnouncer(Node):
                 10,
             ),
             self.create_subscription(
-                LaserScan,
-                '/scan_ouster',
-                lambda msg: self.mark('scan_ouster'),
+                PointCloud2,
+                '/ouster/obstacles',
+                lambda msg: self.mark('ouster_obstacles'),
+                qos_profile_sensor_data,
+            ),
+            self.create_subscription(
+                PointCloud2,
+                '/ouster/clearing',
+                lambda msg: self.mark('ouster_clearing'),
                 qos_profile_sensor_data,
             ),
             self.create_subscription(

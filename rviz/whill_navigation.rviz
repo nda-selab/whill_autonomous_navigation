@@ -178,7 +178,7 @@ Visualization Manager:
       Value: true
     Axis: Z
     Channel Name: intensity
-    Class: rviz_default_plugins/LaserScan
+    Class: rviz_default_plugins/PointCloud2
     Color: 0; 215; 255
     Color Transformer: FlatColor
     Decay Time: 0
@@ -188,7 +188,7 @@ Visualization Manager:
     Max Intensity: 0
     Min Color: 0; 0; 0
     Min Intensity: 0
-    Name: Ouster LaserScan
+    Name: Ouster Obstacles
     Position Transformer: XYZ
     Selectable: true
     Size (Pixels): 3
@@ -200,7 +200,7 @@ Visualization Manager:
       Filter size: 5
       History Policy: Keep Last
       Reliability Policy: Best Effort
-      Value: /scan_ouster
+      Value: /ouster/obstacles
     Use Fixed Frame: true
     Use rainbow: false
     Value: true

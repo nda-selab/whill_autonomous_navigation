@@ -2,10 +2,8 @@ ouster_obstacle_filter:
   ros__parameters:
     marking_min_z: -0.70
     marking_max_z: 0.10
-
     clearing_min_z: -1.00
     clearing_max_z: 0.30
-
     min_range: 0.10
     marking_max_range: 8.0
     clearing_max_range: 10.0
@@ -15,19 +13,19 @@ urg_front_obstacle_filter:
   ros__parameters:
     marking_min_range: 0.05
     marking_max_range: 4.0
+    # Clearing starts at Nav2's urg_front_clearing.raytrace_min_range.
+    clearing_max_range: 4.0
+    clear_on_inf: true
 
 urg_side_obstacle_filter:
   ros__parameters:
-
     obstacle_x_min: -0.05
     obstacle_x_max: 1.20
     obstacle_min_height: 0.05
     obstacle_max_height: 0.40
     min_cluster_points: 2
-
     clearing_min_height: -0.05
     clearing_max_height: 0.05
-
     sensor_timeout_sec: 0.6
     tf_timeout_sec: 0.2
     max_scan_range: 1.6
