@@ -119,7 +119,7 @@ local_costmap:
         combination_method: 1
         transform_tolerance: 0.2
         mapping_mode: false
-        publish_voxel_map: true
+        publish_voxel_map: false
         observation_sources: ouster_marking
         ouster_marking:
           topic: /ouster/obstacles
@@ -134,35 +134,30 @@ local_costmap:
           filter: "none"
       
       urg_front_layer:
-        plugin: "nav2_costmap_2d::ObstacleLayer"
+        plugin: "spatio_temporal_voxel_layer/SpatioTemporalVoxelLayer"
         enabled: true
-        footprint_clearing_enabled: true
+        voxel_decay: 5.0
+        decay_model: 0
+        voxel_size: 0.05
+        mark_threshold: 0
+        track_unknown_space: false
+        update_footprint_enabled: true
         combination_method: 1
-        min_obstacle_height: -100.0
-        max_obstacle_height: 100.0
-        observation_sources: urg_front_marking urg_front_clearing
+        transform_tolerance: 0.2
+        mapping_mode: false
+        publish_voxel_map: false
+        observation_sources: urg_front_marking
         urg_front_marking:
           topic: /urg_front/obstacles
           data_type: "PointCloud2"
           sensor_frame: laser_front
           marking: true
           clearing: false
+          obstacle_range: 4.0
           expected_update_rate: 0.5
-          obstacle_min_range: 0.05
-          obstacle_max_range: 4.0
-          min_obstacle_height: -100.0
-          max_obstacle_height: 100.0
-        urg_front_clearing:
-          topic: /urg_front/clearing
-          data_type: "PointCloud2"
-          sensor_frame: laser_front
-          marking: false
-          clearing: true
-          expected_update_rate: 0.5
-          raytrace_min_range: 0.0
-          raytrace_max_range: 4.0
-          min_obstacle_height: -100.0
-          max_obstacle_height: 100.0
+          observation_persistence: 0.0
+          clear_after_reading: true
+          filter: "none"
 
       urg_left_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
