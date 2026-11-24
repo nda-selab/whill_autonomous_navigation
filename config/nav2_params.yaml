@@ -43,7 +43,7 @@ controller_server:
       time_steps: 40
       model_dt: 0.05
       batch_size: 500
-      iteration_count: 5
+      iteration_count: 1
       vx_max: 0.25
       vx_min: 0.0
       vy_max: 0.0
@@ -59,13 +59,13 @@ controller_server:
       regenerate_noises: false
       visualize: false
       critics:
-        - ConstraintCritics
+        - ConstraintCritic
         - CostCritic
         - GoalCritic
         - PathAlignCritic
         - PathFollowCritic
         - PathAngleCritic
-      ConstraintCritics:
+      ConstraintCritic:
         enabled: true
         cost_power: 1
         cost_weight: 4.0
@@ -131,7 +131,7 @@ local_costmap:
       ouster_layer:
         plugin: "spatio_temporal_voxel_layer/SpatioTemporalVoxelLayer"
         enabled: true
-        voxel_decay: 1.0
+        voxel_decay: 2.0
         decay_model: 0
         voxel_size: 0.05
         mark_threshold: 0
@@ -157,7 +157,7 @@ local_costmap:
       urg_front_layer:
         plugin: "spatio_temporal_voxel_layer/SpatioTemporalVoxelLayer"
         enabled: true
-        voxel_decay: 1.0
+        voxel_decay: 2.0
         decay_model: 0
         voxel_size: 0.05
         mark_threshold: 0
