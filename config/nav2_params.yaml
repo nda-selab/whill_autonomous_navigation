@@ -81,7 +81,7 @@ controller_server:
         enabled: true
         cost_power: 1
         cost_weight: 5.0
-        threshold_to_consider: 1.4
+        threshold_to_consider: 0.5
       PathAlignCritic:
         enabled: true
         cost_power: 1
@@ -96,13 +96,13 @@ controller_server:
         cost_power: 1
         cost_weight: 5.0
         offset_from_furthest: 3
-        threshold_to_consider: 1.4
+        threshold_to_consider: 0.5
       PathAngleCritic:
         enabled: true
         cost_power: 1
         cost_weight: 2.0
         offset_from_furthest: 3
-        threshold_to_consider: 0.5
+        threshold_to_consider: 0.3
         max_angle_to_furthest: 1.0
         forward_preference: true
 
@@ -122,11 +122,17 @@ local_costmap:
       footprint: "[[0.80, 0.275], [0.80, -0.275], [-0.25, -0.275], [-0.25, 0.275]]"
 
       plugins:
+        - static_layer
         - ouster_layer
         - urg_front_layer
         - urg_left_layer
         - urg_right_layer
         - inflation_layer
+
+      static_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"
+        map_topic: /map
+        map_subscribe_transient_local: true
 
       ouster_layer:
         plugin: "spatio_temporal_voxel_layer/SpatioTemporalVoxelLayer"
@@ -240,7 +246,7 @@ local_costmap:
 
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
-        inflation_radius: 0.80
+        inflation_radius: 1.0
         cost_scaling_factor: 3.0
 
       always_send_full_costmap: true
