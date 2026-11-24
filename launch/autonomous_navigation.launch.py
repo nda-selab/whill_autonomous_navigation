@@ -103,7 +103,10 @@ def generate_launch_description():
                 'components',
                 'ouster_obstacle_filter.launch.py',
             ])
-        )
+        ),
+        launch_arguments={
+            'use_sim_time': LaunchConfiguration('use_sim_time'),
+        }.items(),
     )
 
     urg_front_obstacle_filter = IncludeLaunchDescription(
@@ -114,7 +117,10 @@ def generate_launch_description():
                 'components',
                 'urg_front_obstacle_filter.launch.py',
             ])
-        )
+        ),
+        launch_arguments={
+            'use_sim_time': LaunchConfiguration('use_sim_time'),
+        }.items(),
     )
 
     urg_side_obstacle_filter = IncludeLaunchDescription(
@@ -125,7 +131,10 @@ def generate_launch_description():
                 'components',
                 'urg_side_obstacle_filter.launch.py',
             ])
-        )
+        ),
+        launch_arguments={
+            'use_sim_time': LaunchConfiguration('use_sim_time'),
+        }.items(),
     )
 
     # =========================================================

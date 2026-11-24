@@ -164,7 +164,7 @@ local_costmap:
         track_unknown_space: false
         update_footprint_enabled: true
         combination_method: 1
-        transform_tolerance: 0.2
+        transform_tolerance: 0.5
         mapping_mode: false
         publish_voxel_map: false
         observation_sources: urg_front_marking
