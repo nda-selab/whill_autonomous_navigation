@@ -9,7 +9,6 @@ sudo apt install \
   ros-humble-navigation2 \
   ros-humble-nav2-bringup \
   ros-humble-nav2-simple-commander \
-  ros-humble-pointcloud-to-laserscan \
   ros-humble-topic-tools \
   ros-humble-joy \
   ros-humble-tf2-tools \

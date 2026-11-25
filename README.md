@@ -57,9 +57,6 @@ odom_to_base_link
 Ouster LiDAR
  └── /ouster/points
         ↓
-PointCloud to LaserScan
- └── /scan_ouster
-        ↓
 Local Costmap, Global Costmap
 ```
 
@@ -69,7 +66,7 @@ Hokuyo URG
 urg_node2
  ├── /urg_front/scan
  ├── /urg_left/scan
- └── /urg_light/scan
+ └── /urg_right/scan
         ↓
 Local Costmap
 ```
