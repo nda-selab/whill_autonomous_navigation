@@ -270,8 +270,8 @@ global_costmap:
       rolling_window: false
       track_unknown_space: true
       resolution: 0.10 # 0.05 or 0.10 or 0.12
-      update_frequency: 5.0
-      publish_frequency: 2.0
+      update_frequency: 1.0
+      publish_frequency: 1.0
       transform_tolerance: 0.5
       footprint: "[[0.80, 0.275], [0.80, -0.275], [-0.25, -0.275], [-0.25, 0.275]]"
 
@@ -286,7 +286,7 @@ global_costmap:
         inflation_radius: 1.00
         cost_scaling_factor: 3.0
 
-      always_send_full_costmap: true
+      always_send_full_costmap: false
 
 planner_server:
   ros__parameters:
