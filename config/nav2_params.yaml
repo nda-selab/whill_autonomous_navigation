@@ -269,7 +269,7 @@ global_costmap:
       robot_base_frame: base_link
       rolling_window: false
       track_unknown_space: true
-      resolution: 0.10 # 0.05 or 0.10 or 0.12
+      resolution: 0.10 # 0.05 / 0.10 / 0.12
       update_frequency: 1.0
       publish_frequency: 1.0
       transform_tolerance: 0.5
@@ -302,9 +302,7 @@ planner_server:
       max_on_approach_iterations: 1000
       max_planning_time: 5.0
 
-      #lattice_filepath: /home/selab/ros2_ws/src/whill_nav2_bringup/config/lattice/diff_5cm.json
-      lattice_filepath: /home/selab/ros2_ws/src/whill_nav2_bringup/config/lattice/diff_10cm.json
-      #lattice_filepath: /home/selab/ros2_ws/src/whill_nav2_bringup/config/lattice/diff_12cm.json
+      lattice_filepath: /home/selab/ros2_ws/src/whill_nav2_bringup/config/lattice/diff_10cm.json # 5cm / 10cm / 12cm
 
       allow_reverse_expansion: false
       cost_penalty: 2.0

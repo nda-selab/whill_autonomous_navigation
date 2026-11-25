@@ -12,7 +12,8 @@ ros2 launch whill_nav2_bringup waypoint_editor.launch.py \
 RVizおよびMap server起動
 ```bash
 ros2 launch whill_nav2_bringup autonomous_navigation.launch.py \
-  prior_2d_map:=/home/selab/data/selab/nav2_map_csf/map.yaml
+  prior_2d_map:=/home/selab/data/selab/nav2_map_csf/map.yaml \
+  prior_3d_map:=/home/selab/data/selab/pointcloud_2016-02-12-01-30-04_replay_loop_closed.ply
 ```
 
 Waypoints保存
@@ -45,7 +46,8 @@ ros2 launch whill_nav2_bringup waypoint_editor.launch.py \
 RVizおよびMap server起動
 ```bash
 ros2 launch whill_nav2_bringup autonomous_navigation.launch.py \
-  prior_2d_map:=/home/selab/data/nda_outdoor/nav2_map_csf/map.yaml
+  prior_2d_map:=/home/selab/data/nda_outdoor/nav2_map_csf/map.yaml \
+  prior_3d_map:=/home/selab/data/nda_outdoor/pointcloud_ds_2016-02-12-01-29-20_replay_loop_closed.ply
 ```
 
 Waypoints保存

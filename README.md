@@ -57,7 +57,7 @@ odom_to_base_link
 Ouster LiDAR
  └── /ouster/points
         ↓
-Local Costmap, Global Costmap
+Local Costmap
 ```
 
 ```text
@@ -122,34 +122,6 @@ WHILL CmdVel Watchdogは、平滑化後の`/cmd_vel`を監視し、以下の制�
 ### Nav2 Frame Parameters
 
 Nav2の詳細な設定パラメータはconfig/nav2_params.yamlを参照する．
-
-```yaml
-bt_navigator:
-  ros__parameters:
-    global_frame: map
-    robot_base_frame: base_link
-    odom_topic: /odom_nav
-
-global_costmap:
-  global_costmap:
-    ros__parameters:
-      global_frame: map
-      robot_base_frame: base_link
-      rolling_window: false
-      plugins:
-        - static_layer
-        - obstacle_layer
-        - inflation_layer
-
-      static_layer:
-        plugin: "nav2_costmap_2d::StaticLayer"
-        map_subscribe_transient_local: true
-
-behavior_server:
-  ros__parameters:
-    global_frame: odom
-    robot_base_frame: base_link
-```
 
 ## Quik Start
 
