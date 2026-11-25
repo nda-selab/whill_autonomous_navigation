@@ -23,6 +23,7 @@
   <!-- Python Libraries -->
   <exec_depend>python3-numpy</exec_depend>
   <exec_depend>python3-yaml</exec_depend>
+  <exec_depend>python3-psutil</exec_depend>
 
   <!-- Localization -->
   <exec_depend>fast_lio</exec_depend>

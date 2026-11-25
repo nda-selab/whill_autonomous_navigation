@@ -1,5 +1,6 @@
 from launch import LaunchDescription
 from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription, TimerAction)
+from launch.conditions import IfCondition
 from launch.launch_description_sources import AnyLaunchDescriptionSource
 from launch.substitutions import (LaunchConfiguration, PathJoinSubstitution)
 from launch_ros.substitutions import FindPackageShare
@@ -165,6 +166,23 @@ def generate_launch_description():
         output='screen',
         parameters=[LaunchConfiguration('cmd_vel_watchdog_params_file')],
     )
+
+    # =========================================================
+    # System Performance Monitor (observation only)
+    # =========================================================
+    system_performance_monitor = IncludeLaunchDescription(
+        AnyLaunchDescriptionSource(
+            PathJoinSubstitution([
+                FindPackageShare('whill_nav2_bringup'),
+                'launch', 'components', 'system_performance_monitor.launch.py',
+            ])
+        ),
+        condition=IfCondition(LaunchConfiguration('enable_performance_monitor')),
+        launch_arguments={
+            'monitor_params_file': LaunchConfiguration('performance_monitor_params_file'),
+            'use_sim_time': LaunchConfiguration('use_sim_time'),
+        }.items(),
+    )
     
     # =========================================================
     # Nav2
@@ -264,6 +282,20 @@ def generate_launch_description():
         ),
 
         DeclareLaunchArgument(
+            'enable_performance_monitor',
+            default_value='true',
+            description='Enable lightweight CPU and ROS-rate monitoring',
+        ),
+        DeclareLaunchArgument(
+            'performance_monitor_params_file',
+            default_value=PathJoinSubstitution([
+                FindPackageShare('whill_nav2_bringup'),
+                'config', 'system_performance_monitor.yaml',
+            ]),
+            description='Performance monitor parameter YAML file',
+        ),
+
+        DeclareLaunchArgument(
             'use_rviz',
             default_value='true',
             description='Launch RViz',
@@ -301,6 +333,7 @@ def generate_launch_description():
             urg_front_obstacle_filter,
             urg_side_obstacle_filter,
             cmd_vel_watchdog,
+            system_performance_monitor,
             nav2,
         ]),
 

@@ -16,6 +16,7 @@ install(PROGRAMS
   scripts/odom_to_base_link.py
   scripts/ouster_obstacle_filter.py
   scripts/system_status_announcer.py
+  scripts/system_performance_monitor.py
   scripts/trajectory_waypoint_navigator.py
   scripts/twist_to_whill_joy.py
   scripts/urg_front_obstacle_filter.py

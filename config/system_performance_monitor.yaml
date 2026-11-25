@@ -1,0 +1,9 @@
+system_performance_monitor:
+  ros__parameters:
+    sample_period_sec: 1.0
+    process_refresh_sec: 5.0
+    topic_window_sec: 5.0
+    enable_csv: true
+    log_directory: "~/.ros/whill_performance"
+    cmd_vel_topic: "/cmd_vel_nav"
+    odom_topic: "/odom_nav"
