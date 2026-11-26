@@ -30,7 +30,6 @@ def generate_launch_description():
         'controller_server',
         'smoother_server',
         'planner_server',
-        'behavior_server',
         'bt_navigator',
         'waypoint_follower',
         'velocity_smoother',
@@ -68,17 +67,6 @@ def generate_launch_description():
             output='screen',
             parameters=[configured_params],
             remappings=remappings,
-        ),
-
-        Node(
-            package='nav2_behaviors',
-            executable='behavior_server',
-            name='behavior_server',
-            output='screen',
-            parameters=[configured_params],
-            remappings=remappings + [
-                ('cmd_vel', 'cmd_vel_nav'),
-            ],
         ),
 
         Node(
