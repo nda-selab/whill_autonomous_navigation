@@ -99,3 +99,44 @@ ros2 run whill_nav2_bringup waypoint_route_runner.py \
 
 - `--plan-preview` Plannerによる経路確認の実行（Nav2起動時に使用）
 - `--execute`　走行指令の送信
+
+---
+
+## Trajectory to Waypoints
+
+```bash
+ros2 run whill_nav2_bringup trajectory_to_waypoints.py \
+  --trajectory /home/selab/data/tsukuba/trajectory_2016-02-12-01-54-42_replay_loop_closed.ply \
+  --map-yaml /home/selab/data/tsukuba/map/map.yaml \
+  --output /home/selab/data/tsukuba/map/waypoints.yaml \
+  --waypoint-spacing 5.0 \
+  --corner-angle-deg 20.0
+```
+
+## ウェイポイントの編集
+
+Map Serverの起動
+```bash
+ros2 run nav2_map_server map_server \
+  --ros-args -p yaml_filename:='/home/selab/data/tsukuba/map/map.yaml' 
+
+ros2 lifecycle set /map_server configure
+ros2 lifecycle set /map_server activate
+```
+
+Waypoint_editorの起動
+```bash
+ros2 launch whill_nav2_bringup waypoint_editor.launch.py \
+  map_yaml:='/home/selab/data/tsukuba/map/map.yaml' \
+  waypoints_file:='/home/selab/data/tsukuba/map/waypoints.yaml' 
+```
+
+RViz
+```bash
+rviz2
+```
+
+保存
+```bash
+ros2 service call /waypoint_editor/save std_srvs/srv/Trigger '{}'
+```

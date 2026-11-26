@@ -16,6 +16,7 @@ install(PROGRAMS
   scripts/ouster_obstacle_filter.py
   scripts/system_status_announcer.py
   scripts/system_performance_monitor.py
+  scripts/trajectory_to_waypoints.py
   scripts/trajectory_waypoint_navigator.py
   scripts/urg_front_obstacle_filter.py
   scripts/urg_side_obstacle_filter.py

@@ -10,7 +10,7 @@ import tempfile
 import yaml
 
 _ID = re.compile(r'^[A-Za-z][A-Za-z0-9_-]{0,47}$')
-MAX_WAYPOINTS = 150
+MAX_WAYPOINTS = 1000
 
 
 @dataclass
