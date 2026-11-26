@@ -3,8 +3,8 @@
 Tailscale
 ```bash
 ros2 launch whill_web_monitor web_monitor.launch.py \
-  map_yaml:='/home/selab/data/bikan_indoor/maps/map.yaml' \
-  route_yaml:='/home/selab/data/bikan_indoor/maps/waypoints.yaml' \
+  map_yaml:=/home/selab/data/selab/nav2_map_csf/map.yaml \
+  route_yaml:=/home/selab/data/selab/nav2_map_csf/waypoints.yaml \
   bind_address:=127.0.0.1
 ```
 
