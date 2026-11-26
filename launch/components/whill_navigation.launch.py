@@ -1,15 +1,26 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch_ros.substitutions import FindPackageShare
 from launch_ros.actions import Node
 from launch_ros.descriptions import ParameterFile
 from nav2_common.launch import RewrittenYaml
+
 
 
 def generate_launch_description():
     params_file = LaunchConfiguration('params_file')
     use_sim_time = LaunchConfiguration('use_sim_time')
     autostart = LaunchConfiguration('autostart')
+    bt_directory = PathJoinSubstitution([
+        FindPackageShare('whill_nav2_bringup'), 'config', 'bt'
+    ])
+    nav_to_pose_bt = PathJoinSubstitution([
+        bt_directory, 'navigate_to_pose_controller_only.xml',
+    ])
+    nav_through_poses_bt = PathJoinSubstitution([
+        bt_directory, 'navigate_through_poses_controller_only.xml',
+    ])
 
     configured_params = ParameterFile(
         RewrittenYaml(
@@ -30,6 +41,7 @@ def generate_launch_description():
         'controller_server',
         'smoother_server',
         'planner_server',
+        'behavior_server',
         'bt_navigator',
         'waypoint_follower',
         'velocity_smoother',
@@ -70,11 +82,28 @@ def generate_launch_description():
         ),
 
         Node(
+            package='nav2_behaviors',
+            executable='behavior_server',
+            name='behavior_server',
+            output='screen',
+            parameters=[configured_params],
+            remappings=remappings + [
+                ('cmd_vel', 'cmd_vel_nav'),
+            ],
+        ),
+
+        Node(
             package='nav2_bt_navigator',
             executable='bt_navigator',
             name='bt_navigator',
             output='screen',
-            parameters=[configured_params],
+            parameters=[
+                configured_params,
+                {
+                    'default_nav_to_pose_bt_xml': nav_to_pose_bt,
+                    'default_nav_through_poses_bt_xml': nav_through_poses_bt,
+                },
+            ],
             remappings=remappings,
         ),
 

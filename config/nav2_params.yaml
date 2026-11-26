@@ -316,7 +316,8 @@ behavior_server:
     footprint_topic: local_costmap/published_footprint
     cycle_frequency: 10.0
 
-    behavior_plugins: ["spin", "backup", "wait"]
+    #behavior_plugins: ["spin", "backup", "wait"]
+    behavior_plugins: ["spin"]
 
     max_rotational_vel: 0.5
     min_rotational_vel: 0.2
@@ -324,10 +325,10 @@ behavior_server:
 
     spin:
       plugin: "nav2_behaviors/Spin"
-    backup:
-      plugin: "nav2_behaviors/BackUp"
-    wait:
-      plugin: "nav2_behaviors/Wait"
+    #backup:
+    #  plugin: "nav2_behaviors/BackUp"
+    #wait:
+    #  plugin: "nav2_behaviors/Wait"
 
 waypoint_follower:
   ros__parameters:
