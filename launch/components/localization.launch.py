@@ -20,7 +20,7 @@ def generate_launch_description():
             ])
         ),
         launch_arguments={
-            'config_file': 'os2_64.yaml',
+            'config_file': 'os2_64_whill.yaml',
             'rviz': 'false',
             'use_sim_time': LaunchConfiguration('use_sim_time'),
         }.items(),
