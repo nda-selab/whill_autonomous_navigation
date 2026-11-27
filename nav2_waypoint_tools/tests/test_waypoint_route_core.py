@@ -80,6 +80,32 @@ class RouteTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             route.update(id, speed_limit_mps=0.0)
 
+    def test_attribute_persistence(self):
+        route = self.make_route()
+        route.update(route.waypoints[0].id, skippable=False,
+                     wait_time_sec=5.0, speed_limit_mps=0.10,
+                     description='Intersection')
+        with tempfile.TemporaryDirectory() as tmp:
+            file = pathlib.Path(tmp) / 'route.yaml'
+            save_route(file, route)
+            result = load_route(file, route.map_yaml)
+        self.assertEqual(result.waypoints, route.waypoints)
+
+    def test_version1_attribute_defaults(self):
+        data = {
+            'version': 1,
+            'frame_id': 'map',
+            'map_yaml': '/tmp/map.yaml',
+            'waypoints': [
+                {'id': 'wp001', 'x': 0.0, 'y': 0.0},
+            ],
+        }
+        route = from_dict(data, '/tmp/map.yaml')
+        w = route.waypoints[0]
+        self.assertEqual(w.wait_time_sec, 0.0)
+        self.assertIsNone(w.speed_limit_mps)
+        self.assertEqual(w.description, '')
+
     def test_duplicate_rejected(self):
         route = self.make_route()
         route.waypoints.append(Waypoint(route.waypoints[0].id, 0, 0))

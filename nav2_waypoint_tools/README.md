@@ -27,7 +27,7 @@ ros2 lifecycle set /map_server activate
 
 Waypoint_editorの起動
 ```bash
-ros2 launch whill_nav2_bringup waypoint_editor.launch.py \
+ros2 launch nav2_waypoint_tools waypoint_editor.launch.py \
   map_yaml:="/path/to/map.yaml" \
   waypoints_file:="/path/to/waypoints.yaml" \
   nav2_params_file:="$(ros2 pkg prefix --share whill_nav2_bringup)/config/nav2_params.yaml"
@@ -51,7 +51,8 @@ Waypoint editor起動
 ```bash
 ros2 launch nav2_waypoint_tools waypoint_editor.launch.py \
   map_yaml:="/path/to/map.yaml" \
-  waypoints_file:="/path/to/pointcloud.ply"
+  waypoints_file:="/path/to/waypoints.yaml" \
+  nav2_params_file:="$(ros2 pkg prefix --share whill_nav2_bringup)/config/nav2_params.yaml"
 ```
 
 RVizおよびMap server起動
