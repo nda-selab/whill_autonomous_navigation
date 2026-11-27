@@ -128,7 +128,8 @@ class CmdVelWatchdog(Node):
         )
 
     def on_command(self, msg):
-        if self.get_parameter('route_hold').value:
+        if (self.get_parameter('route_hold').value
+                or not self.route_control_valid()):
             self.last_command = None
             self.last_received = None
             return
@@ -217,7 +218,7 @@ class CmdVelWatchdog(Node):
         else:
             self.route_expired_reported = False
 
-        if route_hold or not localization_valid or not command_valid:
+        if route_hold or not route_valid or not localization_valid or not command_valid:
             self.last_command = None
             self.last_received = None
             self.publisher.publish(Twist())

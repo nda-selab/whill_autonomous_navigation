@@ -59,7 +59,11 @@ class WatchdogClient:
         ]
 
         self.sent_at = time.monotonic()
-        self.pending = self.client.call_async(request)
+        try:
+            self.pending = self.client.call_async(request)
+        except Exception as error:
+            self.fault = f'Watchdog request failed: {error}'
+            raise RuntimeError(self.fault) from error
 
     def _poll(self):
         if self.pending is None:
