@@ -131,12 +131,13 @@ Nav2の詳細な設定パラメータはconfig/nav2_params.yamlを参照する�
 
 ```bash
 cd ~/ros2_ws
+
 colcon build --symlink-install --packages-select \
-  whill_nav2_bringup \
   cmd_vel_watchdog \
   lidar_obstacle_filter \
   nav2_waypoint_tools \
-  robot_system_monitor
+  robot_system_monitor \
+  whill_nav2_bringup
 ```
 
 ## Documentation

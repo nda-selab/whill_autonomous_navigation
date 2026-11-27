@@ -287,8 +287,9 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'performance_monitor_params_file',
             default_value=PathJoinSubstitution([
-                FindPackageShare('whill_nav2_bringup'),
-                'config', 'system_performance_monitor.yaml',
+                FindPackageShare('robot_system_monitor'),
+                'config',
+                'system_performance_monitor.yaml',
             ]),
             description='Performance monitor parameter YAML file',
         ),

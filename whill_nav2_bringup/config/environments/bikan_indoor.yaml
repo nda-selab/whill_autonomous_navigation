@@ -6,6 +6,6 @@ environment:
   waypoints_file: /home/selab/data/bikan_indoor/maps/waypoints.yaml
 
   global_costmap_resolution: 0.05
-  lattice_filepath: /home/selab/ros2_ws/src/whill_nav2_bringup/config/lattice/diff_5cm.json
+  lattice_filepath: /home/selab/ros2_ws/src/whill_autonomous_navigation/whill_nav2_bringup/config/lattice/diff_5cm.json
 
   use_sim_time: false

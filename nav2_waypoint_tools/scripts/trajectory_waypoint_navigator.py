@@ -35,8 +35,6 @@ from rclpy.qos import (
 )
 import yaml
 
-from ament_index_python.packages import get_package_share_directory
-
 REQUIRED_COLUMNS = (
     "p_w_b_x",
     "p_w_b_y",

@@ -6,6 +6,6 @@ environment:
   waypoints_file: /home/selab/data/nda_outdoor/nav2_map_csf/waypoints.yaml
 
   global_costmap_resolution: 0.10
-  lattice_filepath: /home/selab/ros2_ws/src/whill_nav2_bringup/config/lattice/diff_10cm.json
+  lattice_filepath: /home/selab/ros2_ws/src/whill_autonomous_navigation/whill_nav2_bringup/config/lattice/diff_10cm.json
 
   use_sim_time: false

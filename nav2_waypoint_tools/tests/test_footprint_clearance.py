@@ -171,7 +171,9 @@ class FootprintConfigTests(unittest.TestCase):
                 self.load_config(FOOTPRINT, padding)
 
     def test_repository_footprint_can_be_loaded(self):
-        footprint = nav.load_footprint(ROOT / "config/nav2_params.yaml")
+        footprint = nav.load_footprint(
+            ROOT.parent / "whill_nav2_bringup/config/nav2_params.yaml"
+        )
         self.assertEqual(len(footprint), 4)
         self.assertGreater(max(x for x, _ in footprint), 0.8)
 
