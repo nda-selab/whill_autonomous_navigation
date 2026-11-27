@@ -15,12 +15,13 @@ def generate_launch_description():
             executable='urg_side_obstacle_filter.py',
             name='urg_side_obstacle_filter',
             output='screen',
-            parameters=[PathJoinSubstitution([
-                FindPackageShare('whill_nav2_bringup'),
-                'config',
-                'obstacle_filter_params.yaml',
-            ]),
-            {'use_sim_time': ParameterValue(use_sim_time, value_type=bool)},
+            parameters=[
+                PathJoinSubstitution([
+                    FindPackageShare('lidar_obstacle_filter'),
+                    'config',
+                    'obstacle_filter_params.yaml',
+                ]),
+                {'use_sim_time': ParameterValue(use_sim_time, value_type=bool)},
             ],
         ),
     ])

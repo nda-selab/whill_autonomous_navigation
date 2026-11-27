@@ -291,7 +291,7 @@ planner_server:
       max_on_approach_iterations: 1000
       max_planning_time: 5.0
 
-      lattice_filepath: /home/selab/ros2_ws/src/whill_nav2_bringup/config/lattice/diff_12cm.json # 5cm / 10cm / 12cm
+      lattice_filepath: /home/selab/ros2_ws/src/whill_autonomous_navigation/whill_nav2_bringup/config/lattice/diff_12cm.json # 5cm / 10cm / 12cm
 
       allow_reverse_expansion: true
       cost_penalty: 2.0

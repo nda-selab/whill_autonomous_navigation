@@ -14,8 +14,4 @@ install(PROGRAMS
   DESTINATION lib/${PROJECT_NAME}
 )
 
-install(FILES
-  DESTINATION lib/${PROJECT_NAME}
-)
-
 ament_package()

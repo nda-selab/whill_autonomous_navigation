@@ -17,7 +17,7 @@ def generate_launch_description():
             output='screen',
             parameters=[
                 PathJoinSubstitution([
-                    FindPackageShare('whill_nav2_bringup'),
+                    FindPackageShare('lidar_obstacle_filter'),
                     'config',
                     'obstacle_filter_params.yaml',
                 ]),

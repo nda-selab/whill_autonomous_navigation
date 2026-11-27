@@ -47,11 +47,6 @@ REQUIRED_COLUMNS = (
 )
 
 Footprint = tuple[tuple[float, float], ...]
-DEFAULT_NAV2_PARAMS = (
-    Path(get_package_share_directory("whill_nav2_bringup"))
-    / "config"
-    / "nav2_params.yaml"
-)
 
 def distance_to_polygon(x: float, y: float, polygon: Footprint) -> float:
     """Distance to a filled convex polygon, including its boundary."""
@@ -277,8 +272,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--nav2-params",
         type=Path,
-        default=DEFAULT_NAV2_PARAMS,
-        help="footprintを読み込むNav2設定YAML（既定値: config/nav2_params.yaml）",
+        required=True,
+        help="Nav2 parameters YAML file",
     )
     parser.add_argument(
         "--frame-id",

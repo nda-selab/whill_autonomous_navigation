@@ -232,7 +232,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'announcer_params_file',
             default_value=PathJoinSubstitution([
-                FindPackageShare('whill_nav2_bringup'),
+                FindPackageShare('robot_system_monitor'),
                 'config',
                 'system_status_announcer.yaml',
             ]),
@@ -272,7 +272,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'cmd_vel_watchdog_params_file',
             default_value=PathJoinSubstitution([
-                FindPackageShare('whill_nav2_bringup'),
+                FindPackageShare('cmd_vel_watchdog'),
                 'config',
                 'cmd_vel_watchdog_params.yaml',
             ]),

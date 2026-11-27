@@ -8,6 +8,12 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
+  <!-- Autonomous Navigation Components -->
+  <exec_depend>cmd_vel_watchdog</exec_depend>
+  <exec_depend>lidar_obstacle_filter</exec_depend>
+  <exec_depend>nav2_waypoint_tools</exec_depend>
+  <exec_depend>robot_system_monitor</exec_depend>
+
   <!-- ROS 2 Launch -->
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
