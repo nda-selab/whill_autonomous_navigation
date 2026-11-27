@@ -22,7 +22,9 @@
   <exec_depend>python3-plyfile</exec_depend>
 
   <exec_depend>nav2_simple_commander</exec_depend>
+  <exec_depend>nav2_msgs</exec_depend>
   <exec_depend>interactive_markers</exec_depend>
+  <exec_depend>rcl_interfaces</exec_depend>
   
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>

@@ -248,7 +248,12 @@ class WaypointEditor(Node):
         control.markers.append(ball)
         label = Marker()
         label.type = Marker.TEXT_VIEW_FACING
-        label.text = str(number)
+        labels = [str(number)]
+        if w.wait_time_sec > 0.0:
+            labels.append(f'WAIT {w.wait_time_sec:g}s')
+        if w.speed_limit_mps is not None:
+            labels.append(f'{w.speed_limit_mps:.2f}m/s')
+        label.text = '\n'.join(labels)
         label.scale.z = 0.22
         label.color.r = label.color.g = label.color.b = label.color.a = 1.0
         label.pose.position.z = 0.22

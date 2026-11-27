@@ -17,6 +17,9 @@ controller_server:
     use_sim_time: false
     controller_frequency: 20.0
     odom_topic: /odom_nav
+
+    speed_limit_topic: /speed_limit
+    publish_zero_velocity: true
     
     min_x_velocity_threshold: 0.01
     min_y_velocity_threshold: 0.01

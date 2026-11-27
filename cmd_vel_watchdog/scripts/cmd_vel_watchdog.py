@@ -52,6 +52,12 @@ class CmdVelWatchdog(Node):
         if not math.isfinite(self.localization_timeout) or self.localization_timeout <= 0:
             raise ValueError('Invalid localization timeout')
 
+        route_limit = self.get_parameter('route_speed_limit').value
+        if (type(route_limit) is not float
+                or not math.isfinite(route_limit)
+                or not 0.0 < route_limit <= self.max_forward):
+            raise ValueError('Invalid initial route speed limit')
+
         self.last_received = None
         self.last_command = None
         self.last_alignment_received = None
@@ -207,7 +213,7 @@ class CmdVelWatchdog(Node):
                         reason='route_hold must be boolean',
                     )
 
-    return SetParametersResult(successful=True)
+        return SetParametersResult(successful=True)
 
 
 def main(args=None):

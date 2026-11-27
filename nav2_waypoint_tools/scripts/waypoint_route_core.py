@@ -36,6 +36,20 @@ class Waypoint:
             raise ValueError(f'Waypoint {self.id}: yaw must be finite or null')
         if self.orientation_required and self.yaw is None:
             raise ValueError(f'Waypoint {self.id}: orientation_required needs yaw')
+        if (type(self.wait_time_sec) not in (int, float)
+                or not math.isfinite(self.wait_time_sec)
+                or self.wait_time_sec < 0.0):
+            raise ValueError(f'Waypoint {self.id}: invalid wait time')
+        if self.speed_limit_mps is not None:
+            if (type(self.speed_limit_mps) not in (int, float)
+                    or not math.isfinite(self.speed_limit_mps)
+                    or self.speed_limit_mps <= 0.0):
+                raise ValueError(f'Waypoint {self.id}: invalid speed limit')
+        if not isinstance(self.description, str):
+            raise ValueError(f'Waypoint {self.id}: invalid description')
+        if self.skippable and (
+                self.wait_time_sec > 0.0 or self.speed_limit_mps is not None):
+            raise ValueError(f'Waypoint {self.id}: control point cannot be skipped')
 
 
 @dataclass
@@ -69,25 +83,6 @@ class Route:
             number += 1
         waypoint = Waypoint(f'wp{number:03d}', float(x), float(y))
         waypoint.validate()
-        if self.orientation_required and self.yaw is None:
-            raise ValueError(f'Waypoint {self.id}: orientation_required needs yaw')
-        if (isinstance(self.wait_time_sec, bool)
-                or not isinstance(self.wait_time_sec, (int, float))
-                or not math.isfinite(self.wait_time_sec)
-                or self.wait_time_sec < 0.0):
-            raise ValueError(f'Waypoint {self.id}: invalid wait time')
-        if self.speed_limit_mps is not None:
-            if (isinstance(self.speed_limit_mps, bool)
-                    or not isinstance(self.speed_limit_mps, (int, float))
-                    or not math.isfinite(self.speed_limit_mps)
-                    or self.speed_limit_mps <= 0.0):
-                raise ValueError(f'Waypoint {self.id}: invalid speed limit')
-        if not isinstance(self.description, str):
-            raise ValueError(f'Waypoint {self.id}: invalid description')
-        if self.skippable and (
-                self.wait_time_sec > 0.0 or self.speed_limit_mps is not None):
-            raise ValueError(
-                f'Waypoint {self.id}: attributed control point must be required')
         self.waypoints.append(waypoint)
         return waypoint
 
