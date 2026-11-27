@@ -3,8 +3,8 @@
 Terminal 1: WHILL Nav2 Bringup
 ```bash
 ros2 launch whill_nav2_bringup autonomous_navigation.launch.py \
-  prior_2d_map:=<2D Map YAML file> \
-  prior_3d_map:=<3D Map PLY or PCD file>
+  prior_2d_map:="$HOME/data/map.yaml" \
+  prior_3d_map:="$HOME/data/pointcloud.ply"
 ```
 
 起動後，RVizの「2D Pose Estimate」からロボットの初期位置・姿勢を設定する．
@@ -13,8 +13,8 @@ ros2 launch whill_nav2_bringup autonomous_navigation.launch.py \
 Terminal 2: Waypoint Route Runner
 ```bash
 ros2 run nav2_waypoint_tools waypoint_route_runner.py \
-  --route <Waypoints YAML file> \
-  --map-yaml <2D Map YAML file> \
+  --route "$HOME/data/waypoints.yaml" \
+  --map-yaml "$HOME/data/map.yaml" \
   --nav2-params "$(ros2 pkg prefix --share whill_nav2_bringup)/config/nav2_params.yaml"
 ```
 

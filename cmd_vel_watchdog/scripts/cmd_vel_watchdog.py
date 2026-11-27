@@ -7,6 +7,7 @@ import rclpy
 from geometry_msgs.msg import Twist
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus
 from rclpy.node import Node
+from rcl_interfaces.msg import SetParametersResult
 
 
 class CmdVelWatchdog(Node):
@@ -22,29 +23,18 @@ class CmdVelWatchdog(Node):
         self.declare_parameter('max_forward_speed', 0.25)
         self.declare_parameter('max_reverse_speed', 0.15)
         self.declare_parameter('max_angular_speed', 0.5)
+        self.declare_parameter('route_speed_limit', float(self.get_parameter('max_forward_speed').value))
+        self.declare_parameter('route_hold', False)
 
         input_topic = self.get_parameter('input_topic').value
         output_topic = self.get_parameter('output_topic').value
 
-        self.timeout = float(
-            self.get_parameter('command_timeout_sec').value
-        )
-        self.localization_timeout = float(
-            self.get_parameter('localization_timeout_sec').value
-        )
-        frequency = float(
-            self.get_parameter('publish_frequency').value
-        )
-
-        self.max_forward = float(
-            self.get_parameter('max_forward_speed').value
-        )
-        self.max_reverse = float(
-            self.get_parameter('max_reverse_speed').value
-        )
-        self.max_angular = float(
-            self.get_parameter('max_angular_speed').value
-        )
+        self.timeout = float(self.get_parameter('command_timeout_sec').value)
+        self.localization_timeout = float(self.get_parameter('localization_timeout_sec').value)
+        frequency = float(self.get_parameter('publish_frequency').value)
+        self.max_forward = float(self.get_parameter('max_forward_speed').value)
+        self.max_reverse = float(self.get_parameter('max_reverse_speed').value)
+        self.max_angular = float(self.get_parameter('max_angular_speed').value)
 
         if input_topic == output_topic:
             raise ValueError('Input and output topics must differ')
@@ -88,7 +78,16 @@ class CmdVelWatchdog(Node):
             1.0 / frequency, self.on_timer
         )
 
+        self.add_on_set_parameters_callback(
+            self.on_parameter_change
+        )
+
     def on_command(self, msg):
+        if self.get_parameter('route_hold').value:
+            self.last_command = None
+            self.last_received = None
+            return
+        
         values = [
             msg.linear.x,
             msg.linear.y,
@@ -161,11 +160,54 @@ class CmdVelWatchdog(Node):
             and self.last_received is not None
             and now - self.last_received <= self.timeout
         )
-    
-        if localization_valid and command_valid:
-            self.publisher.publish(self.last_command)
-        else:
+
+        route_hold = self.get_parameter('route_hold').value
+        route_limit = self.get_parameter('route_speed_limit').value
+
+        if route_hold or not localization_valid or not command_valid:
+            self.last_command = None
+            self.last_received = None
             self.publisher.publish(Twist())
+            return
+
+        command = Twist()
+
+        forward_limit = min(self.max_forward, route_limit)
+        reverse_limit = min(self.max_reverse, route_limit)
+
+        command.linear.x = min(
+            forward_limit,
+            max(-reverse_limit, self.last_command.linear.x),
+        )
+
+        command.angular.z = min(
+            self.max_angular,
+            max(-self.max_angular, self.last_command.angular.z),
+        )
+
+        self.publisher.publish(command)
+
+    def on_parameter_change(self, params):
+        for param in params:
+            if param.name == 'route_speed_limit':
+                value = param.value
+
+                if (type(value) is not float
+                        or not math.isfinite(value)
+                        or not 0.0 < value <= self.max_forward):
+                    return SetParametersResult(
+                        successful=False,
+                        reason='Invalid route speed limit',
+                    )
+
+            elif param.name == 'route_hold':
+                if not isinstance(param.value, bool):
+                    return SetParametersResult(
+                        successful=False,
+                        reason='route_hold must be boolean',
+                    )
+
+    return SetParametersResult(successful=True)
 
 
 def main(args=None):

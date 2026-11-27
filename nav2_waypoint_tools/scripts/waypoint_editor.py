@@ -169,6 +169,19 @@ class WaypointEditor(Node):
                 else:
                     self.route.update(id, orientation_required=True,
                                       yaw=route_heading(self.route, i))
+            elif operation.startswith('wait:'):
+                seconds = float(operation.split(':')[1])
+                changes = {'wait_time_sec': seconds}
+                if seconds > 0.0:
+                    changes['skippable'] = False
+                self.route.update(id, **changes)
+            elif operation.startswith('speed:'):
+                value = operation.split(':')[1]
+                speed = None if value == 'None' else float(value)
+                changes = {'speed_limit_mps': speed}
+                if speed is not None:
+                    changes['skippable'] = False
+                self.route.update(id, **changes)
             elif operation == 'save':
                 self.undo_stack.pop()
                 self.on_save(None, Trigger.Response())
@@ -222,6 +235,10 @@ class WaypointEditor(Node):
         ball.scale.z = 0.06
         if invalid:
             ball.color.r, ball.color.g, ball.color.b = 0.95, 0.15, 0.12
+        elif w.wait_time_sec > 0.0:
+            ball.color.r, ball.color.g, ball.color.b = 0.55, 0.25, 0.85
+        elif w.speed_limit_mps is not None:
+            ball.color.r, ball.color.g, ball.color.b = 0.95, 0.60, 0.05
         elif w.skippable:
             ball.color.r, ball.color.g, ball.color.b = 0.08, 0.65, 0.52
         else:
@@ -272,6 +289,19 @@ class WaypointEditor(Node):
             ('Save YAML', 'save'), ('Reload saved YAML', 'reload'),
         ):
             self.menu.insert(name, callback=lambda feedback, a=action: self.on_menu(feedback, a))
+        wait_menu = self.menu.insert('Wait time')
+        for seconds in (0, 3, 5, 10, 30, 60):
+            self.menu.insert(
+                f'{seconds} s', parent=wait_menu,
+                callback=lambda fb, v=seconds: self.on_menu(fb, f'wait:{v}'),
+            )
+        speed_menu = self.menu.insert('Speed limit')
+        for speed in (None, 0.05, 0.10, 0.15, 0.20, 0.25):
+            label = 'Inherit previous limit' if speed is None else f'{speed:.2f} m/s'
+            self.menu.insert(
+                label, parent=speed_menu,
+                callback=lambda fb, v=speed: self.on_menu(fb, f'speed:{v}'),
+            )
         for i, w in enumerate(self.route.waypoints):
             self.server.insert(self.marker(w, i + 1, w.id in invalid),
                                feedback_callback=self.on_marker_feedback)

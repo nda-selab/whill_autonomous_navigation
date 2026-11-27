@@ -21,6 +21,9 @@ class Waypoint:
     skippable: bool = True
     yaw: float | None = None
     orientation_required: bool = False
+    wait_time_sec: float = 0.0
+    speed_limit_mps: float | None = None
+    description: str = ''
 
     def validate(self):
         if not isinstance(self.id, str) or not _ID.fullmatch(self.id):
@@ -66,6 +69,25 @@ class Route:
             number += 1
         waypoint = Waypoint(f'wp{number:03d}', float(x), float(y))
         waypoint.validate()
+        if self.orientation_required and self.yaw is None:
+            raise ValueError(f'Waypoint {self.id}: orientation_required needs yaw')
+        if (isinstance(self.wait_time_sec, bool)
+                or not isinstance(self.wait_time_sec, (int, float))
+                or not math.isfinite(self.wait_time_sec)
+                or self.wait_time_sec < 0.0):
+            raise ValueError(f'Waypoint {self.id}: invalid wait time')
+        if self.speed_limit_mps is not None:
+            if (isinstance(self.speed_limit_mps, bool)
+                    or not isinstance(self.speed_limit_mps, (int, float))
+                    or not math.isfinite(self.speed_limit_mps)
+                    or self.speed_limit_mps <= 0.0):
+                raise ValueError(f'Waypoint {self.id}: invalid speed limit')
+        if not isinstance(self.description, str):
+            raise ValueError(f'Waypoint {self.id}: invalid description')
+        if self.skippable and (
+                self.wait_time_sec > 0.0 or self.speed_limit_mps is not None):
+            raise ValueError(
+                f'Waypoint {self.id}: attributed control point must be required')
         self.waypoints.append(waypoint)
         return waypoint
 
@@ -112,23 +134,37 @@ def route_heading(route: Route, index: int):
 def to_dict(route: Route):
     route.validate()
     return {
-        'version': 1,
+        'version': 2,
         'frame_id': route.frame_id,
         'map_yaml': route.map_yaml,
         'waypoints': [
-            {'id': w.id, 'x': w.x, 'y': w.y, 'skippable': w.skippable,
-             'yaw': w.yaw, 'orientation_required': w.orientation_required}
+            {
+                'id': w.id, 'x': w.x, 'y': w.y,
+                'skippable': w.skippable,
+                'yaw': w.yaw,
+                'orientation_required': w.orientation_required,
+                'wait_time_sec': w.wait_time_sec,
+                'speed_limit_mps': w.speed_limit_mps,
+                'description': w.description,
+            }
             for w in route.waypoints
         ],
     }
 
 
 def from_dict(data, expected_map_yaml: str):
-    if not isinstance(data, dict) or data.get('version') != 1:
-        raise ValueError('Expected waypoint route version 1')
+    if not isinstance(data, dict) or data.get('version') not in (1, 2):
+        raise ValueError('Expected waypoint route version 1 or 2')
     if not isinstance(data.get('waypoints'), list):
         raise ValueError('Missing waypoints array')
-    allowed = {'id', 'x', 'y', 'skippable', 'yaw', 'orientation_required'}
+    allowed = {
+        'id', 'x', 'y', 'skippable',
+        'yaw', 'orientation_required',
+    }
+    if data['version'] == 2:
+        allowed.update({
+            'wait_time_sec', 'speed_limit_mps', 'description',
+        })
     waypoints = []
     for row in data['waypoints']:
         if not isinstance(row, dict) or not set(row) <= allowed:

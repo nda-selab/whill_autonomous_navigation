@@ -26,6 +26,10 @@ import yaml
 from trajectory_waypoint_navigator import load_grid_map, load_footprint
 from waypoint_route_core import load_route, route_heading, filter_unsafe_route
 
+from nav2_msgs.msg import SpeedLimit
+from rcl_interfaces.srv import SetParametersAtomically
+from rclpy.parameter import Parameter
+
 
 class WaypointEventPublisher:
     """Publish one structured announcement event per route state transition."""
@@ -51,6 +55,29 @@ class WaypointEventPublisher:
         except Exception:
             return False
 
+class RouteSpeedPublisher:
+
+    def __init__(self, nav, initial_limit):
+        self.nav = nav
+        self.limit = float(initial_limit)
+        self.publisher = nav.create_publisher(
+            SpeedLimit, '/speed_limit', 10
+        )
+
+        # Periodically reapply the current speed limit
+        self.timer = nav.create_timer(0.1, self.publish)
+
+    def set_limit(self, value):
+        self.limit = float(value)
+        self.publish()
+
+    def publish(self):
+        msg = SpeedLimit()
+        msg.header.stamp = self.nav.get_clock().now().to_msg()
+        msg.percentage = False
+        msg.speed_limit = self.limit
+
+        self.publisher.publish(msg)
 
 def yaw_quaternion(yaw):
     return math.sin(yaw / 2), math.cos(yaw / 2)
@@ -231,12 +258,18 @@ def main():
     for entry in skipped:
         print(f'  SKIP {entry["id"]}: {entry["reason"]}')
     for i, wp in enumerate(filtered.waypoints):
-        print(f'  {i+1}. {wp.id}: ({wp.x:.2f},{wp.y:.2f}), required={not wp.skippable}, yaw_required={wp.orientation_required}')
+        speed = 'inherit' if wp.speed_limit_mps is None else f'{wp.speed_limit_mps:.2f} m/s'
+        print(f'  {i+1}. {wp.id}: ({wp.x:.2f},{wp.y:.2f}), '
+              f'required={not wp.skippable}, yaw_required={wp.orientation_required}, '
+              f'wait={wp.wait_time_sec:g} s, speed={speed}')
     if not args.plan_preview and not args.execute:
         print('OFFLINE PREVIEW ONLY. Add --plan-preview to query Nav2, --execute to move the robot.')
         return 0
     if args.execute:
         check_position_goal_checker(params_file)
+        if any(w.wait_time_sec > 0.0 or w.speed_limit_mps is not None
+               for w in route.waypoints):
+            raise RuntimeError('Attributed route execution is not implemented yet')
     rclpy.init()
     nav = BasicNavigator(node_name='waypoint_route_runner')
     events = WaypointEventPublisher(nav) if args.execute else None
@@ -328,6 +361,18 @@ def main():
             if state == 'succeeded':
                 results.append({'id': w.id, 'status': 'reached'})
                 events.send('reached', w.id)
+                if w.wait_time_sec > 0.0:
+                    watchdog.set_hold(True)
+                    events.send('waiting', w.id)
+                    wait_at_waypoint(nav, gate, w.wait_time_sec)
+                    events.send('wait_completed', w.id)
+                if w.speed_limit_mps is not None:
+                    watchdog.set_speed_limit(w.speed_limit_mps)
+                    speed_publisher.set_limit(w.speed_limit_mps)
+                    events.send(
+                        'speed_changed', w.id,
+                        reason=str(w.speed_limit_mps),
+                    )
             elif w.skippable:
                 results.append({'id': w.id, 'status': 'skipped', 'reason': state})
                 events.send('skipped', w.id, state)

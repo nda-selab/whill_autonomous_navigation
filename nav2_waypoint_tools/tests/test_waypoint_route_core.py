@@ -63,6 +63,30 @@ class RouteTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             route.update(route.waypoints[0].id, orientation_required=True)
 
+        def test_invalid_coordinates_and_yaw(self):
+        route = self.make_route()
+        with self.assertRaises(ValueError):
+            route.update(route.waypoints[0].id, x=float('nan'))
+        with self.assertRaises(ValueError):
+            route.update(route.waypoints[0].id, orientation_required=True)
+
+    def test_waypoint_attributes(self):
+        route = self.make_route()
+        id = route.waypoints[0].id
+        route.update(id, skippable=False, wait_time_sec=5.0,
+                     speed_limit_mps=0.10, description='Intersection')
+        w = route.waypoints[0]
+        self.assertEqual(w.wait_time_sec, 5.0)
+        self.assertEqual(w.speed_limit_mps, 0.10)
+        self.assertEqual(w.description, 'Intersection')
+
+        with self.assertRaises(ValueError):
+            route.update(id, skippable=True)
+        with self.assertRaises(ValueError):
+            route.update(id, wait_time_sec=-1.0)
+        with self.assertRaises(ValueError):
+            route.update(id, speed_limit_mps=0.0)
+
     def test_duplicate_rejected(self):
         route = self.make_route()
         route.waypoints.append(Waypoint(route.waypoints[0].id, 0, 0))
