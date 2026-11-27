@@ -25,10 +25,9 @@ import yaml
 
 from trajectory_waypoint_navigator import load_grid_map, load_footprint
 from waypoint_route_core import load_route, route_heading, filter_unsafe_route
+from route_watchdog_client import WatchdogClient
 
 from nav2_msgs.msg import SpeedLimit
-from rcl_interfaces.srv import SetParametersAtomically
-from rclpy.parameter import Parameter
 
 
 class WaypointEventPublisher:

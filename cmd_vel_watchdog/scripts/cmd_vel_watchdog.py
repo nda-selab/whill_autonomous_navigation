@@ -7,6 +7,7 @@ import rclpy
 from geometry_msgs.msg import Twist
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus
 from rclpy.node import Node
+from rclpy.clock import Clock, ClockType
 from rcl_interfaces.msg import SetParametersResult
 
 
@@ -25,6 +26,10 @@ class CmdVelWatchdog(Node):
         self.declare_parameter('max_angular_speed', 0.5)
         self.declare_parameter('route_speed_limit', float(self.get_parameter('max_forward_speed').value))
         self.declare_parameter('route_hold', False)
+        self.declare_parameter('require_route_control', False)
+        self.declare_parameter('route_timeout_sec', 1.0)
+        self.declare_parameter('route_session', '')
+        self.declare_parameter('route_sequence', -1)
 
         input_topic = self.get_parameter('input_topic').value
         output_topic = self.get_parameter('output_topic').value
@@ -63,6 +68,20 @@ class CmdVelWatchdog(Node):
         self.last_alignment_received = None
         self.alignment_healthy = False
 
+        self.require_route_control = self.get_parameter('require_route_control').value
+        self.route_timeout = float(self.get_parameter('route_timeout_sec').value)
+
+        if not math.isfinite(self.route_timeout) or self.route_timeout <= 0.0:
+            raise ValueError('Invalid route timeout')
+
+        if (self.get_parameter('route_session').value != ''
+                or self.get_parameter('route_sequence').value != -1):
+            raise ValueError('Invalid initial route session')
+
+        self.route_update = None
+        self.retired_sessions = set()
+        self.route_expired_reported = False
+
         self.publisher = self.create_publisher(
             Twist,
             output_topic,
@@ -80,12 +99,32 @@ class CmdVelWatchdog(Node):
             self.on_alignment_status,
             10,
         )
+
+        self.steady_clock = Clock(clock_type=ClockType.STEADY_TIME)
+
         self.timer = self.create_timer(
-            1.0 / frequency, self.on_timer
+            1.0 / frequency, self.on_timer,
+            clock=self.steady_clock,
         )
 
         self.add_on_set_parameters_callback(
             self.on_parameter_change
+        )
+
+    def route_control_valid(self, now=None):
+        if not self.require_route_control:
+            return True
+
+        if self.route_update is None:
+            return False
+
+        now = time.monotonic() if now is None else now
+        session, sequence, received_at = self.route_update
+
+        return (
+            session == self.get_parameter('route_session').value
+            and sequence == self.get_parameter('route_sequence').value
+            and now - received_at <= self.route_timeout
         )
 
     def on_command(self, msg):
@@ -169,6 +208,14 @@ class CmdVelWatchdog(Node):
 
         route_hold = self.get_parameter('route_hold').value
         route_limit = self.get_parameter('route_speed_limit').value
+        route_valid = self.route_control_valid(now)
+
+        if self.require_route_control and not route_valid:
+            if not self.route_expired_reported:
+                self.get_logger().warning('Route control unavailable or timed out')
+                self.route_expired_reported = True
+        else:
+            self.route_expired_reported = False
 
         if route_hold or not localization_valid or not command_valid:
             self.last_command = None
@@ -194,24 +241,98 @@ class CmdVelWatchdog(Node):
         self.publisher.publish(command)
 
     def on_parameter_change(self, params):
-        for param in params:
-            if param.name == 'route_speed_limit':
-                value = param.value
+        updates = {p.name: p.value for p in params}
 
-                if (type(value) is not float
-                        or not math.isfinite(value)
-                        or not 0.0 < value <= self.max_forward):
-                    return SetParametersResult(
-                        successful=False,
-                        reason='Invalid route speed limit',
-                    )
+        fixed_params = {
+            'input_topic', 'output_topic',
+            'command_timeout_sec', 'localization_timeout_sec',
+            'publish_frequency', 'max_forward_speed',
+            'max_reverse_speed', 'max_angular_speed',
+            'require_route_control', 'route_timeout_sec',
+        }
 
-            elif param.name == 'route_hold':
-                if not isinstance(param.value, bool):
-                    return SetParametersResult(
-                        successful=False,
-                        reason='route_hold must be boolean',
-                    )
+        route_params = {
+            'route_session', 'route_sequence',
+            'route_speed_limit', 'route_hold',
+        }
+
+        def reject(reason):
+            return SetParametersResult(successful=False, reason=reason)
+
+        if fixed_params.intersection(updates):
+            return reject('Fixed watchdog parameters cannot be changed at runtime')
+
+        if 'route_speed_limit' in updates:
+            value = updates['route_speed_limit']
+            if (type(value) is not float
+                    or not math.isfinite(value)
+                    or not 0.0 < value <= self.max_forward):
+                return reject('Invalid route speed limit')
+
+        if 'route_hold' in updates and type(updates['route_hold']) is not bool:
+            return reject('route_hold must be boolean')
+
+        # Non-route parameters
+        if not route_params.intersection(updates):
+            return SetParametersResult(successful=True)
+
+        # Legacy navigation mode
+        if not self.require_route_control:
+            if {'route_session', 'route_sequence'}.intersection(updates):
+                return reject('Route communication monitoring is disabled')
+
+            if 'route_hold' in updates:
+                self.last_command = None
+                self.last_received = None
+
+            return SetParametersResult(successful=True)
+
+        # All route parameters must be updated atomically
+        if set(updates) != route_params or len(params) != len(route_params):
+            return reject('All route parameters must be updated atomically')
+
+        session = updates['route_session']
+        sequence = updates['route_sequence']
+        hold = updates['route_hold']
+        now = time.monotonic()
+
+        if not isinstance(session, str) or not session or len(session) > 64:
+            return reject('Invalid route session')
+
+        if type(sequence) is not int or sequence < 0:
+            return reject('Invalid route sequence')
+
+        current_session = self.get_parameter('route_session').value
+        current_sequence = self.get_parameter('route_sequence').value
+
+        if session == current_session:
+            if not self.route_control_valid(now):
+                return reject('Route session expired; start a new mission')
+
+            if sequence != current_sequence + 1:
+                return reject('Invalid route sequence')
+
+        else:
+            if session in self.retired_sessions:
+                return reject('Retired route session')
+
+            if self.route_control_valid(now):
+                return reject('Another route session is active')
+
+            if sequence != 0 or not hold:
+                return reject('New session must start with sequence=0 and hold=true')
+
+            if current_session:
+                self.retired_sessions.add(current_session)
+
+        # Discard cached commands at session/hold transitions
+        if (session != current_session
+                or hold != self.get_parameter('route_hold').value):
+            self.last_command = None
+            self.last_received = None
+
+        # Only a committed matching session/sequence is valid
+        self.route_update = (session, sequence, now)
 
         return SetParametersResult(successful=True)
 

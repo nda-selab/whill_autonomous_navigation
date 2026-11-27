@@ -18,6 +18,7 @@ install(PROGRAMS
 
 install(FILES
   scripts/waypoint_route_core.py
+  scripts/route_watchdog_client.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

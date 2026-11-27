@@ -13,3 +13,7 @@ cmd_vel_watchdog:
 
     route_speed_limit: 0.25
     route_hold: false
+    require_route_control: false
+    route_timeout_sec: 1.0
+    route_session: ""
+    route_sequence: -1
