@@ -109,7 +109,7 @@ ros2 run whill_nav2_bringup trajectory_to_waypoints.py \
   --trajectory /home/selab/data/tsukuba/trajectory_2016-02-12-01-54-42_replay_loop_closed.ply \
   --map-yaml /home/selab/data/tsukuba/map/map.yaml \
   --output /home/selab/data/tsukuba/map/waypoints.yaml \
-  --waypoint-spacing 5.0 \
+  --waypoint-spacing 10.0 \
   --corner-angle-deg 20.0
 ```
 
@@ -119,7 +119,10 @@ Map Serverの起動
 ```bash
 ros2 run nav2_map_server map_server \
   --ros-args -p yaml_filename:='/home/selab/data/tsukuba/map/map.yaml' 
+```
 
+Map Serverの有効化
+```bash
 ros2 lifecycle set /map_server configure
 ros2 lifecycle set /map_server activate
 ```

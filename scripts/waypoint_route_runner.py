@@ -246,16 +246,26 @@ def main():
     results = [{'id': s['id'], 'status': 'skipped', 'reason': s['reason']} for s in skipped]
     preflight_skips = {entry['id']: entry for entry in results}
     try:
-        nav.waitUntilNav2Active(localizer='map_server')
         if args.execute:
+            nav.waitUntilNav2Active(localizer='map_server')
             wait_for_gate(nav, gate)
+        else:
+            nav.waitUntilNav2Active(navigator='planner_server', localizer='map_server')
         # Preflight all map-safe segments. If an optional segment is not plannable,
         # remove its target and plan the next segment from the last accepted pose.
         accepted = []
         previous = None
-        for i, w in enumerate(filtered.waypoints):
+        start_index = 0
+        if not args.execute:
+            first = filtered.waypoints[0]
+            previous = make_pose(nav, first, route_heading(filtered, 0))
+            accepted.append((first, previous))
+            start_index = 1
+        for i in range(start_index, len(filtered.waypoints)):
+            w = filtered.waypoints[i]
             pose = make_pose(nav, w, route_heading(filtered, i))
-            planned = nav.getPath(previous if previous else pose, pose, use_start=(previous is not None))
+            print(f'[{i+1}/{len(filtered.waypoints)}] Planning to {w.id}...', flush=True)
+            planned = nav.getPath(previous if previous is not None else pose, pose, use_start=(previous is not None))
             if planned is None or not planned.poses:
                 if not w.skippable:
                     raise RuntimeError(f'No valid plan to required waypoint {w.id}; mission aborted')
