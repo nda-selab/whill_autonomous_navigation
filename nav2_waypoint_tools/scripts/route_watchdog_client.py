@@ -167,6 +167,12 @@ class WatchdogClient:
     def set_speed_limit(self, speed_limit):
         self.set_state(speed_limit=speed_limit)
 
+    def stop_updates(self):
+        self.active = False
+
+        if self.timer is not None:
+            self.timer.cancel()
+
     def close(self):
         if not self.active:
             return

@@ -26,6 +26,9 @@ import yaml
 from trajectory_waypoint_navigator import load_grid_map, load_footprint
 from waypoint_route_core import load_route, route_heading, filter_unsafe_route
 from route_watchdog_client import WatchdogClient
+from route_health_monitor import (
+    LocalizationHealthGate, RobotMotionMonitor, RouteHealthGate,
+)
 
 from nav2_msgs.msg import SpeedLimit
 
@@ -123,6 +126,63 @@ def wait_for_gate(nav, gate, max_wait=10.0):
             return
     raise RuntimeError('URG filter status is missing/ERROR; route execution blocked')
 
+def wait_stopped(nav, gate, motion, timeout=5.0):
+    deadline = time.monotonic() + timeout
+
+    while rclpy.ok() and time.monotonic() < deadline:
+        rclpy.spin_once(nav, timeout_sec=0.05)
+
+        if not gate.healthy():
+            raise RuntimeError('Health check failed while stopping')
+
+        if motion.stopped():
+            return
+
+    raise RuntimeError('Robot stop could not be confirmed')
+
+
+def verify_control_point(nav, tf_buffer, waypoint, tolerance):
+    transform = tf_buffer.lookup_transform(
+        'map', 'base_link', Time(),
+    )
+
+    stamp = Time.from_msg(transform.header.stamp)
+    age = (nav.get_clock().now() - stamp).nanoseconds * 1e-9
+
+    if not 0.0 <= age <= 0.5:
+        raise RuntimeError('Robot transform is stale')
+
+    pos = transform.transform.translation
+    error = math.hypot(
+        pos.x - waypoint.x, pos.y - waypoint.y,
+    )
+
+    if not math.isfinite(error) or error > tolerance:
+        raise RuntimeError(
+            f'{waypoint.id}: position error {error:.3f} m '
+            f'exceeds tolerance {tolerance:.3f} m'
+        )
+
+
+def wait_at_waypoint(nav, gate, motion, tf_buffer, waypoint, tolerance):
+    deadline = time.monotonic() + waypoint.wait_time_sec
+
+    while rclpy.ok():
+        rclpy.spin_once(nav, timeout_sec=0.05)
+
+        if not gate.healthy():
+            raise RuntimeError('Health check failed during waypoint wait')
+
+        if not motion.stopped():
+            raise RuntimeError('Robot moved during waypoint wait')
+
+        verify_control_point(nav, tf_buffer, waypoint, tolerance)
+
+        if time.monotonic() >= deadline:
+            return
+
+    raise RuntimeError('ROS shutdown during waypoint wait')
+
 
 def cancel_and_confirm(nav, timeout=5.0):
     """Request cancellation and wait for a terminal result within timeout."""
@@ -175,18 +235,63 @@ def cancel_and_confirm(nav, timeout=5.0):
     return False
 
 
-def wait_nav_task(nav, gate, timeout):
+def abort_motion(nav, watchdog):
+    hold_confirmed = True
+    canceled = True
+    if watchdog is not None:
+        try:
+            watchdog.close()
+        except Exception as error:
+            hold_confirmed = False
+            nav.get_logger().error(
+                f'Watchdog hold request failed: {error}'
+            )
+        finally:
+            watchdog.stop_updates()
+    future = getattr(nav, 'result_future', None)
+    if future is not None and not future.done():
+        try:
+            canceled = cancel_and_confirm(nav)
+        except Exception as error:
+            canceled = False
+            nav.get_logger().error(
+                f'Navigation cancellation failed: {error}'
+            )
+    return hold_confirmed and canceled
+
+
+def release_for_task(nav, gate, watchdog):
+    if not gate.healthy():
+        raise RuntimeError('Health check failed before motion')
+    if watchdog is not None:
+        future = getattr(nav, 'result_future', None)
+        if future is None:
+            raise RuntimeError('Navigation task has no result future')
+        if not future.done():
+            watchdog.set_hold(False)
+
+
+def wait_nav_task(nav, gate, timeout, watchdog=None):
     started = time.monotonic()
-    while not nav.isTaskComplete():
+    while rclpy.ok():
+        completed = nav.isTaskComplete()
         if not gate.healthy():
-            if not cancel_and_confirm(nav):
-                raise RuntimeError('URG safety error: cancellation not confirmed')
-            raise RuntimeError('URG filter unhealthy; navigation canceled, not skipped')
+            raise RuntimeError('Route health check failed during navigation')
+        if completed:
+            if watchdog is not None:
+                watchdog.set_hold(True)
+            return (
+                'succeeded'
+                if nav.getResult() == TaskResult.SUCCEEDED
+                else 'failed'
+            )
         if time.monotonic() - started > timeout:
+            if watchdog is not None:
+                watchdog.set_hold(True)
             if not cancel_and_confirm(nav):
                 raise RuntimeError('Goal timeout: cancellation not confirmed')
             return 'timeout'
-    return 'succeeded' if nav.getResult() == TaskResult.SUCCEEDED else 'failed'
+    raise RuntimeError('ROS shutdown during navigation')
 
 
 def robot_yaw(tf_buffer):
@@ -199,18 +304,22 @@ def normalized_angle(value):
     return (value + math.pi) % (2 * math.pi) - math.pi
 
 
-def ensure_heading(nav, tf_buffer, gate, target_yaw, tolerance, timeout):
+def ensure_heading(nav, tf_buffer, gate, target_yaw, tolerance, timeout, watchdog=None):
     current = robot_yaw(tf_buffer)
     delta = normalized_angle(target_yaw - current)
     if abs(delta) <= tolerance:
         return True
     if not gate.healthy():
-        raise RuntimeError('URG status unhealthy before yaw alignment')
-    if not nav.spin(spin_dist=delta, time_allowance=math.ceil(timeout)):
+        raise RuntimeError('Health check failed before yaw alignment')
+    if not nav.spin(
+            spin_dist=delta, time_allowance=math.ceil(timeout)):
         return False
-    if wait_nav_task(nav, gate, timeout) != 'succeeded':
+    release_for_task(nav, gate, watchdog)
+    if wait_nav_task(nav, gate, timeout, watchdog) != 'succeeded':
         return False
-    return abs(normalized_angle(target_yaw - robot_yaw(tf_buffer))) <= tolerance
+    return abs(
+        normalized_angle(target_yaw - robot_yaw(tf_buffer))
+    ) <= tolerance
 
 
 def check_position_goal_checker(params_file):
@@ -220,6 +329,7 @@ def check_position_goal_checker(params_file):
     checker_names = params['goal_checker_plugins']
     if len(checker_names) != 1 or params[checker_names[0]]['plugin'] != 'nav2_controller::PositionGoalChecker':
         raise ValueError('Execution requires controller_server PositionGoalChecker for yaw-free waypoints')
+    return params
 
 
 def parse_args():
@@ -230,6 +340,9 @@ def parse_args():
     parser.add_argument('--clearance', type=float, default=0.05, help='Additional robot footprint clearance [m]')
     parser.add_argument('--plan-preview', action='store_true', help='Ask Nav2 Planner for each segment, no motion')
     parser.add_argument('--execute', action='store_true', help='Actually send NavigateToPose and Spin goals')
+    parser.add_argument('--route-control', action='store_true', help='Enable attributed route control with watchdog')
+    parser.add_argument('--initial-speed-limit', type=float, default=0.25, help='Initial route speed limit [m/s]')
+    parser.add_argument('--control-point-tolerance', type=float, default=0.25, help='Position tolerance for attributed waypoints [m]')
     parser.add_argument('--max-goal-time', type=float, default=120.0, help='Per-goal timeout [s]')
     parser.add_argument('--max-retries', type=int, default=1, help='Additional attempts for optional goals')
     parser.add_argument('--yaw-tolerance-deg', type=float, default=15.0, help='Required terminal yaw tolerance [deg]')
@@ -241,6 +354,16 @@ def parse_args():
         parser.error('Invalid clearance')
     if not 0.0 < args.yaw_tolerance_deg <= 180:
         parser.error('Invalid yaw tolerance')
+    if args.route_control and not args.execute:
+        parser.error('--route-control requires --execute')
+    if args.plan_preview and args.execute:
+        parser.error('--plan-preview and --execute are mutually exclusive')
+    if (not math.isfinite(args.initial_speed_limit)
+            or args.initial_speed_limit <= 0.0):
+        parser.error('Invalid initial speed limit')
+    if (not math.isfinite(args.control_point_tolerance)
+            or args.control_point_tolerance <= 0.0):
+        parser.error('Invalid control point tolerance')
     return args
 
 
@@ -265,16 +388,44 @@ def main():
         print('OFFLINE PREVIEW ONLY. Add --plan-preview to query Nav2, --execute to move the robot.')
         return 0
     if args.execute:
-        check_position_goal_checker(params_file)
-        if any(w.wait_time_sec > 0.0 or w.speed_limit_mps is not None
-               for w in route.waypoints):
-            raise RuntimeError('Attributed route execution is not implemented yet')
+        controller_params = check_position_goal_checker(params_file)
+        has_attributes = any(
+            w.wait_time_sec > 0.0 or w.speed_limit_mps is not None
+            for w in route.waypoints
+        )
+        if has_attributes and not args.route_control:
+            raise RuntimeError(
+                'Attributed route requires --route-control'
+            )
+        if args.route_control:
+            checker = controller_params['goal_checker_plugins'][0]
+            xy_tolerance = float(
+                controller_params[checker]['xy_goal_tolerance']
+            )
+            if not 0.0 < xy_tolerance <= args.control_point_tolerance:
+                raise RuntimeError(
+                    'Goal checker tolerance exceeds control point tolerance'
+                )
+            max_speed = float(
+                controller_params['FollowPath']['vx_max']
+            )
+            if not 0.0 < args.initial_speed_limit <= max_speed:
+                raise RuntimeError('Initial speed exceeds MPPI limit')
+            for w in route.waypoints:
+                if (w.speed_limit_mps is not None
+                        and w.speed_limit_mps > max_speed):
+                    raise RuntimeError(
+                        f'{w.id}: speed exceeds MPPI limit'
+                    )
     rclpy.init()
     nav = BasicNavigator(node_name='waypoint_route_runner')
     events = WaypointEventPublisher(nav) if args.execute else None
     gate = UrgHealthGate(nav) if args.execute else None
     tf_buffer = Buffer() if args.execute else None
     tf_listener = TransformListener(tf_buffer, nav, spin_thread=False) if args.execute else None
+    watchdog = None
+    speed_publisher = None
+    motion = None
     results = [{'id': s['id'], 'status': 'skipped', 'reason': s['reason']} for s in skipped]
     preflight_skips = {entry['id']: entry for entry in results}
     try:
@@ -314,6 +465,22 @@ def main():
         if not args.execute:
             print('PLAN PREVIEW ONLY: no movement commands sent')
             return 0
+        if args.route_control:
+            watchdog = WatchdogClient(
+                nav, initial_limit=args.initial_speed_limit,
+            )
+            watchdog.start()
+            localization_gate = LocalizationHealthGate(nav)
+            motion = RobotMotionMonitor(nav)
+            gate = RouteHealthGate(
+                gate, localization_gate, motion, watchdog,
+            )
+            speed_publisher = RouteSpeedPublisher(
+                nav, args.initial_speed_limit,
+            )
+            speed_publisher.publish()
+            wait_for_gate(nav, gate)
+            wait_stopped(nav, gate, motion)
 
         events.send('started')
         accepted_by_id = {w.id: (w, pose) for w, pose in accepted}
@@ -344,27 +511,46 @@ def main():
                 if not nav.goToPose(pose):
                     state = 'rejected'
                     break
-                state = wait_nav_task(nav, gate, args.max_goal_time)
+                release_for_task(nav, gate, watchdog)
+                state = wait_nav_task(nav, gate, args.max_goal_time, watchdog)
                 print(f'{w.id}: attempt {attempt+1} -> {state}')
                 if state == 'succeeded':
                     break
             if state == 'succeeded' and w.orientation_required:
                 try:
-                    rotated = ensure_heading(nav, tf_buffer, gate, w.yaw,
-                                             math.radians(args.yaw_tolerance_deg), 30.0)
+                    rotated = ensure_heading(
+                        nav, tf_buffer, gate, w.yaw,
+                        math.radians(args.yaw_tolerance_deg),
+                        30.0, watchdog,
+                    )
                 except TransformException as error:
                     rotated = False
                     print(f'Yaw verification unavailable: {error}', file=sys.stderr)
                 if not rotated:
                     state = 'yaw_failed'
             if state == 'succeeded':
+                control_point = (
+                    w.wait_time_sec > 0.0
+                    or w.speed_limit_mps is not None
+                )
+                if control_point:
+                    watchdog.set_hold(True)
+                    wait_stopped(nav, gate, motion)
+                    verify_control_point(
+                        nav, tf_buffer, w,
+                        args.control_point_tolerance,
+                    )
                 results.append({'id': w.id, 'status': 'reached'})
                 events.send('reached', w.id)
+                # Wait at the waypoint
                 if w.wait_time_sec > 0.0:
-                    watchdog.set_hold(True)
                     events.send('waiting', w.id)
-                    wait_at_waypoint(nav, gate, w.wait_time_sec)
+                    wait_at_waypoint(
+                        nav, gate, motion, tf_buffer, w,
+                        args.control_point_tolerance,
+                    )
                     events.send('wait_completed', w.id)
+                # Set the speed limit for the following segment
                 if w.speed_limit_mps is not None:
                     watchdog.set_speed_limit(w.speed_limit_mps)
                     speed_publisher.set_limit(w.speed_limit_mps)
@@ -377,25 +563,44 @@ def main():
                 events.send('skipped', w.id, state)
             else:
                 raise RuntimeError(f'Required waypoint {w.id} failed: {state}')
+        if watchdog is not None:
+            watchdog.set_hold(True)
+            wait_stopped(nav, gate, motion)
+            watchdog.close()
         events.send('completed')
         print('Mission complete; required goal reached.')
         return 0
     except KeyboardInterrupt:
-        print('Interrupted; canceling navigation', file=sys.stderr)
-        canceled = not args.execute or cancel_and_confirm(nav)
+        print('Interrupted; stopping navigation', file=sys.stderr)
+        stopped = not args.execute or abort_motion(nav, watchdog)
         if events is not None:
-            events.send('aborted' if canceled else 'safety_warning', reason='keyboard_interrupt')
-        if not canceled:
-            print('WARNING: navigation cancellation not confirmed', file=sys.stderr)
+            events.send(
+                'aborted' if stopped else 'safety_warning',
+                reason='keyboard_interrupt',
+            )
+        if not stopped:
+            print(
+                'WARNING: stop hold or cancellation not confirmed',
+                file=sys.stderr,
+            )
         return 130
-    except (RuntimeError, TransformException) as error:
+    except Exception as error:
+        stopped = not args.execute or abort_motion(nav, watchdog)
         if events is not None:
-            event = 'safety_warning' if 'cancellation not confirmed' in str(error).lower() else 'aborted'
-            events.send(event, reason=error)
+            events.send(
+                'aborted' if stopped else 'safety_warning',
+                reason=error,
+            )
         print(f'ABORTED: {error}', file=sys.stderr)
-        results.append({'id': 'mission', 'status': 'aborted', 'reason': str(error)})
+        results.append({
+            'id': 'mission',
+            'status': 'aborted',
+            'reason': str(error),
+        })
         return 1
     finally:
+        if watchdog is not None:
+            watchdog.stop_updates()
         if events is not None:
             events.flush()
         if args.execute:
