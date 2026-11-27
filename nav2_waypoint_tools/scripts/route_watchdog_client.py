@@ -174,12 +174,8 @@ class WatchdogClient:
             self.timer.cancel()
 
     def close(self):
-        if not self.active:
-            return
-
         try:
-            self.set_hold(True)
+            if self.active:
+                self.set_hold(True)
         finally:
-            self.active = False
-            if self.timer is not None:
-                self.timer.cancel()
+            self.stop_updates()

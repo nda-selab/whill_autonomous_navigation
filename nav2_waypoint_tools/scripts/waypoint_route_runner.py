@@ -127,6 +127,7 @@ def wait_for_gate(nav, gate, max_wait=10.0):
     raise RuntimeError('URG filter status is missing/ERROR; route execution blocked')
 
 def wait_stopped(nav, gate, motion, timeout=5.0):
+    motion.reset_stop_confirmation()
     deadline = time.monotonic() + timeout
 
     while rclpy.ok() and time.monotonic() < deadline:
@@ -517,6 +518,10 @@ def main():
                 if state == 'succeeded':
                     break
             if state == 'succeeded' and w.orientation_required:
+                if watchdog is not None:
+                    watchdog.set_hold(True)
+                    wait_stopped(nav, gate, motion)
+                    
                 try:
                     rotated = ensure_heading(
                         nav, tf_buffer, gate, w.yaw,

@@ -123,6 +123,9 @@ class RobotMotionMonitor:
             and 0.0 <= age <= self.timeout
         )
 
+    def reset_stop_confirmation(self):
+        self.stationary_since = None
+
     def stopped(self):
         return (
             self.healthy()
