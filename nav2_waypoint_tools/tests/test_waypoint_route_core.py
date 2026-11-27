@@ -63,7 +63,7 @@ class RouteTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             route.update(route.waypoints[0].id, orientation_required=True)
 
-        def test_invalid_coordinates_and_yaw(self):
+    def test_invalid_coordinates_and_yaw(self):
         route = self.make_route()
         with self.assertRaises(ValueError):
             route.update(route.waypoints[0].id, x=float('nan'))
