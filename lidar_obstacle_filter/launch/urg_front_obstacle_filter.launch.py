@@ -11,7 +11,7 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('use_sim_time', default_value='false'),
         Node(
-            package='whill_nav2_bringup',
+            package='lidar_obstacle_filter',
             executable='urg_front_obstacle_filter.py',
             name='urg_front_obstacle_filter',
             output='screen',

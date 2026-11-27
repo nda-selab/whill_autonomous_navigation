@@ -199,7 +199,7 @@ class SystemStatusAnnouncer(Node):
 
         configured_path = self.get_parameter('messages_file').value
         default_path = (
-            Path(get_package_share_directory('whill_nav2_bringup'))
+            Path(get_package_share_directory('robot_system_monitor'))
             / 'config' / 'announcement_messages.yaml'
         )
         messages_path = Path(configured_path) if configured_path else default_path

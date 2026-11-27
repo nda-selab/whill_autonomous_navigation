@@ -13,7 +13,7 @@ def generate_launch_description():
     # System Status Announcer
     # =========================================================
     system_status_announcer = Node(
-        package='whill_nav2_bringup',
+        package='robot_system_monitor',
         executable='system_status_announcer.py',
         name='system_status_announcer',
         output='screen',
@@ -99,9 +99,8 @@ def generate_launch_description():
     ouster_obstacle_filter = IncludeLaunchDescription(
         AnyLaunchDescriptionSource(
             PathJoinSubstitution([
-                FindPackageShare('whill_nav2_bringup'),
+                FindPackageShare('lidar_obstacle_filter'),
                 'launch',
-                'components',
                 'ouster_obstacle_filter.launch.py',
             ])
         ),
@@ -113,9 +112,8 @@ def generate_launch_description():
     urg_front_obstacle_filter = IncludeLaunchDescription(
         AnyLaunchDescriptionSource(
             PathJoinSubstitution([
-                FindPackageShare('whill_nav2_bringup'),
+                FindPackageShare('lidar_obstacle_filter'),
                 'launch',
-                'components',
                 'urg_front_obstacle_filter.launch.py',
             ])
         ),
@@ -127,9 +125,8 @@ def generate_launch_description():
     urg_side_obstacle_filter = IncludeLaunchDescription(
         AnyLaunchDescriptionSource(
             PathJoinSubstitution([
-                FindPackageShare('whill_nav2_bringup'),
+                FindPackageShare('lidar_obstacle_filter'),
                 'launch',
-                'components',
                 'urg_side_obstacle_filter.launch.py',
             ])
         ),
@@ -160,7 +157,7 @@ def generate_launch_description():
     # 速度監視
     # =========================================================
     cmd_vel_watchdog = Node(
-        package='whill_nav2_bringup',
+        package='cmd_vel_watchdog',
         executable='cmd_vel_watchdog.py',
         name='cmd_vel_watchdog',
         output='screen',
@@ -173,8 +170,9 @@ def generate_launch_description():
     system_performance_monitor = IncludeLaunchDescription(
         AnyLaunchDescriptionSource(
             PathJoinSubstitution([
-                FindPackageShare('whill_nav2_bringup'),
-                'launch', 'components', 'system_performance_monitor.launch.py',
+                FindPackageShare('robot_system_monitor'),
+                'launch',
+                'system_performance_monitor.launch.py',
             ])
         ),
         condition=IfCondition(LaunchConfiguration('enable_performance_monitor')),

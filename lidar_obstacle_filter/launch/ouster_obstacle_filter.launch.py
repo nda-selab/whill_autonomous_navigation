@@ -11,13 +11,14 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('use_sim_time', default_value='false'),
         Node(
-            package='whill_nav2_bringup',
+            package='lidar_obstacle_filter',
             executable='ouster_obstacle_filter.py',
             name='ouster_obstacle_filter',
             output='screen',
             parameters=[
                 PathJoinSubstitution([
-                    FindPackageShare('whill_nav2_bringup'), 'config',
+                    FindPackageShare('lidar_obstacle_filter'),
+                    'config',
                     'obstacle_filter_params.yaml',
                 ]),
                 {'use_sim_time': ParameterValue(use_sim_time, value_type=bool)},

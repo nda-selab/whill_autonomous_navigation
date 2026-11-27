@@ -1,4 +1,3 @@
-"""Standalone editor; deliberately never starts Nav2 movement actions."""
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
@@ -8,7 +7,9 @@ from launch_ros.substitutions import FindPackageShare
 
 def generate_launch_description():
     default_params = PathJoinSubstitution([
-        FindPackageShare('whill_nav2_bringup'), 'config', 'nav2_params.yaml',
+        FindPackageShare('whill_nav2_bringup'),
+        'config',
+        'nav2_params.yaml',
     ])
     return LaunchDescription([
         DeclareLaunchArgument('map_yaml', description='OccupancyGrid map YAML used in Nav2'),
@@ -16,7 +17,7 @@ def generate_launch_description():
         DeclareLaunchArgument('nav2_params_file', default_value=default_params),
         DeclareLaunchArgument('clearance', default_value='0.05'),
         Node(
-            package='whill_nav2_bringup', executable='waypoint_editor.py',
+            package='nav2_waypoint_tools', executable='waypoint_editor.py',
             name='waypoint_editor', output='screen', parameters=[{
                 'map_yaml': LaunchConfiguration('map_yaml'),
                 'waypoints_file': LaunchConfiguration('waypoints_file'),
