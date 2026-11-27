@@ -4,9 +4,9 @@
 
 ```bash
 ros2 run nav2_waypoint_tools trajectory_to_waypoints.py \
-  --trajectory <Trajectory PLY file> \
-  --map-yaml <2D Map YAML file> \
-  --output <Waypoint Output YAML file>\
+  --trajectory "/path/to/trajectory.ply" \
+  --map-yaml "/path/to/map.yaml" \
+  --output "/path/to/waypoints.yaml" \
   --waypoint-spacing 10.0 \
   --corner-angle-deg 20.0
 ```
@@ -16,7 +16,7 @@ ros2 run nav2_waypoint_tools trajectory_to_waypoints.py \
 Map Serverの起動
 ```bash
 ros2 run nav2_map_server map_server \
-  --ros-args -p yaml_filename:=<2D Map YAML file> 
+  --ros-args -p yaml_filename:="/path/to/map.yaml" 
 ```
 
 Map Serverの有効化
@@ -28,8 +28,9 @@ ros2 lifecycle set /map_server activate
 Waypoint_editorの起動
 ```bash
 ros2 launch whill_nav2_bringup waypoint_editor.launch.py \
-  map_yaml:=<2D Map YAML file>  \
-  waypoints_file:=<Waypoint YAML file> 
+  map_yaml:="/path/to/map.yaml" \
+  waypoints_file:="/path/to/waypoints.yaml" \
+  nav2_params_file:="$(ros2 pkg prefix --share whill_nav2_bringup)/config/nav2_params.yaml"
 ```
 
 RViz
@@ -49,15 +50,15 @@ ros2 service call /waypoint_editor/save std_srvs/srv/Trigger '{}'
 Waypoint editor起動
 ```bash
 ros2 launch nav2_waypoint_tools waypoint_editor.launch.py \
-  map_yaml:=< 2D Map YAML file > \
-  waypoints_file:=< Waypoint YAML file >
+  map_yaml:="/path/to/map.yaml" \
+  waypoints_file:="/path/to/pointcloud.ply"
 ```
 
 RVizおよびMap server起動
 ```bash
 ros2 launch whill_nav2_bringup autonomous_navigation.launch.py \
-  prior_2d_map:=< 2D Map YAML file > \
-  prior_3d_map:=< 3D Map PLY or PCD file >
+  prior_2d_map:="/path/to/map.yaml" \
+  prior_3d_map:="/path/to/pointcloud.ply"
 ```
 
 Waypoints保存
@@ -68,9 +69,9 @@ ros2 service call /waypoint_editor/save std_srvs/srv/Trigger '{}'
 経路事前検証
 ```bash
 ros2 run nav2_waypoint_tools waypoint_route_runner.py \
-  --route < Waypoint YAML file > \
-  --map-yaml < 2D Map YAML file > \
-  --nav2-params < Nav2 Parameter YAML file >
+  --route "/path/to/waypoints.yaml" \
+  --map-yaml "/path/to/map.yaml" \
+  --nav2-params "$(ros2 pkg prefix --share whill_nav2_bringup)/config/nav2_params.yaml"
 ```
 
 - `--plan-preview` Plannerによる経路確認の実行（Nav2起動時に使用）
