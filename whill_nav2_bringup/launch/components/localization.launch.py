@@ -71,6 +71,14 @@ def generate_launch_description():
                 'use_odom': False,
                 'use_twist_prediction': False,
                 'use_continuous_time_deskew': False,
+
+                # Local prior map
+                'enable_local_map_crop': True,
+                'local_map_radius': 120.0,
+                'local_map_update_distance': 2.0,
+                'local_map_min_points': 100,
+                'scan_max_range': 100.0,
+
                 'enable_timer_publishing': True,
                 'pose_publish_frequency': 20.0,
                 'publish_bridge_pose_when_lost': True,
