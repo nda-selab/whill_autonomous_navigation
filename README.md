@@ -55,7 +55,7 @@ odom_to_base_link
 EKFベース
 ```text
 WHIL Wheel Odometry
- └── /whill_odom
+ └── /wheel_odom
 Ouster IMU
  └── /ouster/imu
         ↓
