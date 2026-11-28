@@ -44,7 +44,7 @@ def generate_launch_description():
             },
         ],
         remappings=[
-            ('/cloud', '/cloud_registered'),
+            ('/cloud', LaunchConfiguration('cloud_topic')),
         ],
     )
 
@@ -71,6 +71,10 @@ def generate_launch_description():
                 'param',
                 'localization.yaml',
             ]),
+        ),
+        DeclareLaunchArgument(
+            'cloud_topic',
+            default_value='/cloud_registered',
         ),
 
         lidar_localization,

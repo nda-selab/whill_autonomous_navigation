@@ -1,0 +1,25 @@
+wheel_odometry:
+  ros__parameters:
+    use_sim_time: false
+    input_topic: /whill/states/model_cr2
+    output_topic: /wheel_odom
+    diagnostics_topic: /wheel_odometry/diagnostics
+    odom_frame: odom
+    base_frame: base_link
+
+    # Preliminary value from WHILL driver cmd_vel conversion; measure on vehicle.
+    wheel_tread: 0.496                 # m
+    left_sign: 1                       # +/-1; verify forward direction
+    right_sign: 1                      # +/-1; verify forward direction
+    left_scale: 1.0                    # dimensionless calibration
+    right_scale: 1.0
+    axle_to_base_x: 0.0                # m; axle center -> base_link, forward positive
+    axle_to_base_y: 0.0                # m; left positive; parallel axes assumed
+    calibration_confirmed: true        # no odom until explicitly enabled
+
+    wheel_speed_std: 0.03              # m/s, provisional
+    lateral_speed_std: 0.05            # m/s, provisional
+    max_wheel_speed: 2.0               # m/s, plausibility threshold, not a motion limit
+    max_dt: 0.65                       # s; accommodates nominal 400ms initially
+    input_timeout: 0.75                # s; tighten after verifying 20Hz input
+    diagnostic_rate: 5.0              # Hz

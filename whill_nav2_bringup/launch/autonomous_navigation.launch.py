@@ -148,6 +148,7 @@ def generate_launch_description():
             ])
         ),
         launch_arguments={
+            'localization_mode': LaunchConfiguration('localization_mode'),
             'use_sim_time': LaunchConfiguration('use_sim_time'),
             'prior_3d_map': LaunchConfiguration('prior_3d_map'),
         }.items(),
@@ -300,7 +301,7 @@ def generate_launch_description():
             description='Launch RViz',
         ),
 
-                DeclareLaunchArgument(
+        DeclareLaunchArgument(
             'prior_2d_map',
             description='Absolute path to 2D occupancy grid map YAML',
         ),
@@ -314,6 +315,13 @@ def generate_launch_description():
             'use_sim_time',
             default_value='false',
             description='Use simulation clock',
+        ),
+
+        DeclareLaunchArgument(
+            'localization_mode',
+            default_value='slam',
+            choices=['slam', 'ekf'],
+            description='Local odometry estimation method',
         ),
 
         system_status_announcer,
