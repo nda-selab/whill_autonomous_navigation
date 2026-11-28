@@ -46,7 +46,7 @@ controller_server:
       model_dt: 0.05
       batch_size: 500
       iteration_count: 1
-      vx_max: 0.25
+      vx_max: 0.35
       vx_min: -0.15
       vy_max: 0.0
       wz_max: 0.5
@@ -261,7 +261,7 @@ global_costmap:
       robot_base_frame: base_link
       rolling_window: false
       track_unknown_space: true
-      resolution: 0.12 # 0.05 / 0.10 / 0.12
+      resolution: 0.10 # 0.05 / 0.10 / 0.12
       update_frequency: 1.0
       publish_frequency: 1.0
       transform_tolerance: 0.5
@@ -294,7 +294,7 @@ planner_server:
       max_on_approach_iterations: 1000
       max_planning_time: 5.0
 
-      lattice_filepath: /home/selab/ros2_ws/src/whill_autonomous_navigation/whill_nav2_bringup/config/lattice/diff_12cm.json # 5cm / 10cm / 12cm
+      lattice_filepath: /home/selab/ros2_ws/src/whill_autonomous_navigation/whill_nav2_bringup/config/lattice/diff_10cm.json # 5cm / 10cm / 12cm
 
       allow_reverse_expansion: true
       cost_penalty: 2.0
@@ -345,7 +345,7 @@ velocity_smoother:
     smoothing_frequency: 20.0
     scale_velocities: false
     feedback: "OPEN_LOOP"
-    max_velocity: [0.25, 0.0, 0.5]
+    max_velocity: [0.35, 0.0, 0.5]
     min_velocity: [-0.15, 0.0, -0.5]
     max_accel: [0.3, 0.0, 0.5]
     max_decel: [-0.3, 0.0, -0.5]
