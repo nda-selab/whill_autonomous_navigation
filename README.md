@@ -37,6 +37,7 @@ lidar_localization_ros2
 
 ### Real-time Localization
 
+SLAMベース
 ```text
 Ouster LiDAR
  ├── /ouster/points
@@ -47,6 +48,18 @@ FAST-LIO2
  └── /Odometry
          ↓
 odom_to_base_link
+ ├── /odom_nav
+ └── odom -> base_link
+```
+
+EKFベース
+```text
+WHIL Wheel Odometry
+ └── /whill_odom
+Ouster IMU
+ └── /ouster/imu
+        ↓
+EKF
  ├── /odom_nav
  └── odom -> base_link
 ```
