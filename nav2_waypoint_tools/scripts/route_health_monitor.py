@@ -9,12 +9,63 @@ from rclpy.qos import qos_profile_sensor_data
 from rclpy.time import Time
 
 
+def diagnostic_level(status):
+    # ROS 2 Humble represents DiagnosticStatus.level (byte) as bytes.
+    level = status.level
+    return int.from_bytes(level, 'little') if isinstance(level, bytes) else level
+
+
+def require_healthy(gate, context):
+    reasons = gate.failure_reasons()
+    if reasons:
+        raise RuntimeError(f'{context}: {"; ".join(reasons)}')
+
+
+class UrgHealthGate:
+    """Prevent continuing when either processed vertical URG is stale/bad."""
+
+    def __init__(self, node, timeout=1.5):
+        self.last_at = None
+        self.statuses = {}
+        self.timeout = timeout
+        self.subscription = node.create_subscription(
+            DiagnosticArray, '/urg_obstacle_filter/status', self.callback, 10)
+
+    def callback(self, msg):
+        self.last_at = time.monotonic()
+        self.statuses = {
+            status.name.rsplit('/', 1)[-1]: status
+            for status in msg.status
+            if status.name in ('urg_obstacle_filter/left', 'urg_obstacle_filter/right')
+        }
+
+    def failure_reasons(self):
+        if self.last_at is None:
+            return ['URG: /urg_obstacle_filter/status not received']
+        reasons = []
+        age = time.monotonic() - self.last_at
+        if age > self.timeout:
+            reasons.append(f'URG: diagnostics stale (age={age:.3f}s, limit={self.timeout:.3f}s)')
+        for side in ('left', 'right'):
+            status = self.statuses.get(side)
+            if status is None:
+                reasons.append(f'URG {side}: diagnostic missing')
+            elif status.level != DiagnosticStatus.OK:
+                reasons.append(
+                    f'URG {side}: level={diagnostic_level(status)}, message={status.message!r}')
+        return reasons
+
+    def healthy(self):
+        return not self.failure_reasons()
+
+
 class LocalizationHealthGate:
 
     def __init__(self, node, timeout=1.5):
         self.timeout = timeout
         self.last_received = None
         self.valid = False
+        self.invalid_reason = 'alignment not received'
 
         self.subscription = node.create_subscription(
             DiagnosticArray, '/alignment_status', self.callback, 10,
@@ -34,15 +85,29 @@ class LocalizationHealthGate:
                 and values.get('map_received') == 'true'
                 and values.get('initialpose_received') == 'true'
             )
+            self.invalid_reason = (
+                f'level={diagnostic_level(status)}, message={status.message!r}, '
+                f'has_converged={values.get("has_converged", "missing")}, '
+                f'map_received={values.get("map_received", "missing")}, '
+                f'initialpose_received={values.get("initialpose_received", "missing")}'
+            )
             self.last_received = time.monotonic()
             return
 
+    def failure_reasons(self):
+        if self.last_received is None:
+            return ['localization: /alignment_status alignment not received']
+        reasons = []
+        age = time.monotonic() - self.last_received
+        if age > self.timeout:
+            reasons.append(
+                f'localization: diagnostics stale (age={age:.3f}s, limit={self.timeout:.3f}s)')
+        if not self.valid:
+            reasons.append(f'localization: {self.invalid_reason}')
+        return reasons
+
     def healthy(self):
-        return (
-            self.valid
-            and self.last_received is not None
-            and time.monotonic() - self.last_received <= self.timeout
-        )
+        return not self.failure_reasons()
 
 
 class RobotMotionMonitor:
@@ -62,6 +127,7 @@ class RobotMotionMonitor:
         self.stationary_since = None
         self.linear_speed = math.inf
         self.angular_speed = math.inf
+        self.invalid_reason = '/odom_nav not received'
 
         self.subscription = node.create_subscription(
             Odometry, '/odom_nav', self.callback,
@@ -83,11 +149,19 @@ class RobotMotionMonitor:
                 or stamp <= 0):
             self.stationary_since = None
             self.last_received = None
+            self.invalid_reason = (
+                f'invalid /odom_nav (child_frame_id={msg.child_frame_id!r}, '
+                f'stamp_ns={stamp}, velocity={values})'
+            )
             return
 
         if self.last_stamp is not None and stamp <= self.last_stamp:
             self.stationary_since = None
             self.last_received = None
+            self.invalid_reason = (
+                f'/odom_nav timestamp did not advance '
+                f'(stamp_ns={stamp}, previous_ns={self.last_stamp})'
+            )
             return
 
         if (self.last_received is None
@@ -96,6 +170,7 @@ class RobotMotionMonitor:
 
         self.last_stamp = stamp
         self.last_received = now
+        self.invalid_reason = None
 
         self.linear_speed = math.hypot(
             twist.linear.x, twist.linear.y,
@@ -110,18 +185,28 @@ class RobotMotionMonitor:
         else:
             self.stationary_since = None
 
-    def healthy(self):
+    def failure_reasons(self):
         if self.last_received is None or self.last_stamp is None:
-            return False
+            return [f'odometry: {self.invalid_reason}']
 
         age = (
             self.node.get_clock().now().nanoseconds - self.last_stamp
         ) * 1e-9
 
-        return (
-            time.monotonic() - self.last_received <= self.timeout
-            and 0.0 <= age <= self.timeout
-        )
+        reasons = []
+        received_age = time.monotonic() - self.last_received
+        if received_age > self.timeout:
+            reasons.append(
+                f'odometry: /odom_nav reception stale '
+                f'(age={received_age:.3f}s, limit={self.timeout:.3f}s)')
+        if not 0.0 <= age <= self.timeout:
+            reasons.append(
+                f'odometry: /odom_nav source timestamp outside freshness window '
+                f'(age={age:.3f}s, allowed=0..{self.timeout:.3f}s)')
+        return reasons
+
+    def healthy(self):
+        return not self.failure_reasons()
 
     def reset_stop_confirmation(self):
         self.stationary_since = None
@@ -143,10 +228,14 @@ class RouteHealthGate:
         self.watchdog = watchdog
 
     def healthy(self):
-        return (
-            self.urg_gate.healthy()
-            and self.localization_gate.healthy()
-            and self.motion.healthy()
-            and self.watchdog.active
-            and self.watchdog.fault is None
-        )
+        return not self.failure_reasons()
+
+    def failure_reasons(self):
+        reasons = []
+        for gate in (self.urg_gate, self.localization_gate, self.motion):
+            reasons.extend(gate.failure_reasons())
+        if not self.watchdog.active:
+            reasons.append('watchdog: inactive')
+        if self.watchdog.fault is not None:
+            reasons.append(f'watchdog: {self.watchdog.fault}')
+        return reasons

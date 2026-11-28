@@ -14,7 +14,6 @@ import sys
 import time
 
 import rclpy
-from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus
 from geometry_msgs.msg import PoseStamped
 from nav2_simple_commander.robot_navigator import BasicNavigator, TaskResult
 from std_msgs.msg import String
@@ -28,6 +27,7 @@ from waypoint_route_core import load_route, route_heading, filter_unsafe_route
 from route_watchdog_client import WatchdogClient
 from route_health_monitor import (
     LocalizationHealthGate, RobotMotionMonitor, RouteHealthGate,
+    UrgHealthGate, require_healthy,
 )
 
 from nav2_msgs.msg import SpeedLimit
@@ -95,36 +95,13 @@ def make_pose(nav, w, yaw):
     return pose
 
 
-class UrgHealthGate:
-    """Prevent continuing the route when either processed vertical URG is stale/bad."""
-    def __init__(self, navigator, timeout=1.5):
-        self.last_at = None
-        self.levels = {}
-        self.timeout = timeout
-        self.subscription = navigator.create_subscription(
-            DiagnosticArray, '/urg_obstacle_filter/status', self.callback, 10)
-
-    def callback(self, msg):
-        self.last_at = time.monotonic()
-        self.levels = {
-            status.name.rsplit('/', 1)[-1]: status.level
-            for status in msg.status
-            if status.name in ('urg_obstacle_filter/left', 'urg_obstacle_filter/right')
-        }
-
-    def healthy(self):
-        return (self.last_at is not None and time.monotonic() - self.last_at <= self.timeout
-                and set(self.levels) == {'left', 'right'}
-                and all(level == DiagnosticStatus.OK for level in self.levels.values()))
-
-
 def wait_for_gate(nav, gate, max_wait=10.0):
     deadline = time.monotonic() + max_wait
     while time.monotonic() < deadline:
         rclpy.spin_once(nav, timeout_sec=0.1)
         if gate.healthy():
             return
-    raise RuntimeError('URG filter status is missing/ERROR; route execution blocked')
+    require_healthy(gate, 'Route startup health check timed out')
 
 def wait_stopped(nav, gate, motion, timeout=5.0):
     motion.reset_stop_confirmation()
@@ -133,8 +110,7 @@ def wait_stopped(nav, gate, motion, timeout=5.0):
     while rclpy.ok() and time.monotonic() < deadline:
         rclpy.spin_once(nav, timeout_sec=0.05)
 
-        if not gate.healthy():
-            raise RuntimeError('Health check failed while stopping')
+        require_healthy(gate, 'Health check failed while stopping')
 
         if motion.stopped():
             return
@@ -171,8 +147,7 @@ def wait_at_waypoint(nav, gate, motion, tf_buffer, waypoint, tolerance):
     while rclpy.ok():
         rclpy.spin_once(nav, timeout_sec=0.05)
 
-        if not gate.healthy():
-            raise RuntimeError('Health check failed during waypoint wait')
+        require_healthy(gate, 'Health check failed during waypoint wait')
 
         if not motion.stopped():
             raise RuntimeError('Robot moved during waypoint wait')
@@ -262,8 +237,7 @@ def abort_motion(nav, watchdog):
 
 
 def release_for_task(nav, gate, watchdog):
-    if not gate.healthy():
-        raise RuntimeError('Health check failed before motion')
+    require_healthy(gate, 'Health check failed before motion')
     if watchdog is not None:
         future = getattr(nav, 'result_future', None)
         if future is None:
@@ -276,8 +250,7 @@ def wait_nav_task(nav, gate, timeout, watchdog=None):
     started = time.monotonic()
     while rclpy.ok():
         completed = nav.isTaskComplete()
-        if not gate.healthy():
-            raise RuntimeError('Route health check failed during navigation')
+        require_healthy(gate, 'Route health check failed during navigation')
         if completed:
             if watchdog is not None:
                 watchdog.set_hold(True)
@@ -310,8 +283,7 @@ def ensure_heading(nav, tf_buffer, gate, target_yaw, tolerance, timeout, watchdo
     delta = normalized_angle(target_yaw - current)
     if abs(delta) <= tolerance:
         return True
-    if not gate.healthy():
-        raise RuntimeError('Health check failed before yaw alignment')
+    require_healthy(gate, 'Health check failed before yaw alignment')
     if not nav.spin(
             spin_dist=delta, time_allowance=math.ceil(timeout)):
         return False
@@ -491,8 +463,7 @@ def main():
                 events.send('skipped', original.id, prior_skip['reason'])
                 continue
             w, pose = accepted_by_id[original.id]
-            if not gate.healthy():
-                raise RuntimeError('URG diagnostics unhealthy; mission aborted')
+            require_healthy(gate, 'Route health check failed before goal')
             # Update pose stamp and re-plan from live pose before each goal.
             pose.header.stamp = nav.get_clock().now().to_msg()
             planned = nav.getPath(pose, pose, use_start=False)
@@ -504,8 +475,7 @@ def main():
                 raise RuntimeError(f'Live path unavailable to required {w.id}')
             state = 'failed'
             for attempt in range(args.max_retries + 1):
-                if not gate.healthy():
-                    raise RuntimeError('URG diagnostics unhealthy; mission aborted')
+                require_healthy(gate, 'Route health check failed before goal')
                 if attempt > 0:
                     events.send('retrying', w.id)
                 pose.header.stamp = nav.get_clock().now().to_msg()

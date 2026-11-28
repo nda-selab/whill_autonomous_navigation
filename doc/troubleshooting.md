@@ -113,3 +113,41 @@ ros2 run tf2_ros tf2_echo map base_link
 ros2 topic echo /global_costmap/costmap --once --field header
 ros2 topic echo /local_costmap/costmap --once --field header
 ```
+
+## 地図更新時のTF遅延と経路走行の停止理由
+
+`lidar_localization_ros2` のローカル地図切り出し・NDTターゲット再構築・
+fitness計算は、姿勢配信タイマーと共有する状態ロックを解放して実行する。
+更新中に初期位置を再設定した場合は、その更新結果を採用せず次のスキャンで再構築する。
+`Local map target update: ... s, ... points` のログで地図更新の所要時間を確認できる。
+この修正はロックによるTF配信待ちを解消するもので、地図更新自体の計算量は減らさない。
+
+経路走行のヘルスチェック失敗時には、コンソール、`*.results.yaml` の
+`results` 内の `id: mission` の `reason`、`/navigation/waypoint_event` の
+`reason` に具体的な原因が入る。
+
+- `localization`: `/alignment_status` の未受信・古さ、収束状態、地図・初期位置の受信状態。
+- `URG left/right`: センサーごとの診断欠落、レベル、メッセージ。
+- `odometry`: `/odom_nav` の受信遅延、元タイムスタンプの古さ・逆行、不正なフレームや速度。
+- `watchdog`: 非アクティブ状態、watchdogが報告した異常。
+
+監視タイムアウトと停止条件は従来どおり。複数の異常がある場合は併記する。
+
+## MPPIの負荷比較
+
+`whill_nav2_bringup/config/nav2_params_mppi_light.yaml` は比較用の完全な設定ファイル。
+通常設定の `time_steps: 160` を `60` に変更し、`model_dt: 0.05`、
+`batch_size: 500`、制御周期20 Hzは維持する。予測時間は8秒から3秒、
+1反復のサンプル×ステップ数は80,000から30,000になる。
+実際の処理時間が同じ割合で減るとは限らず、短い予測時間が経路追従に与える影響は実機で確認する。
+既定設定は変更していない。
+
+通常の起動コマンドに、次の引数を追加して比較用設定を選ぶ。
+
+```bash
+nav2_params_file:=/home/selab/ros2_ws/src/whill_autonomous_navigation/whill_nav2_bringup/config/nav2_params_mppi_light.yaml
+```
+
+`waypoint_route_runner.py` の `--nav2-params` にも同じファイルを指定する。
+比較用ファイルは通常設定のコピーなので、他の設定を調整した際は両方に反映する。
+同じ経路で、制御周期超過、MPPI失敗、TF遅延、結果ファイルの停止理由を比較する。
